@@ -31,15 +31,11 @@ export class WalletService {
     const idempotencyKey_ETH = uuidv4();
     const idempotencyKey_SOL = uuidv4();
 
-    console.log('idempotency key:' + idempotencyKey_ETH);
-    console.log('idempotency key:' + idempotencyKey_SOL);
-
     const verifiedAuthToken =
       await this.authTokenService.verifyAuthToken(authToken);
     if (!verifiedAuthToken) {
       throw new Error('User is not verified.');
     }
-    console.log('Inside creating server wallet');
 
     const cleanId = id.split('did:privy:')[1];
     if (!cleanId) {
@@ -58,6 +54,7 @@ export class WalletService {
       idempotencyKey: idempotencyKey_SOL,
     });
 
+    // const tx = await this.privy.walletApi.rpc
     return [wallet_ETH, wallet_SOL];
   }
 }
