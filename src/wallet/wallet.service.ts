@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrivyClient, User, WalletApiCreateRequestType } from '@privy-io/server-auth';
+import { PrivyClient, User, WalletApiCreateRequestType, WalletApiCreateResponseType } from '@privy-io/server-auth';
 import AuthTokenService from 'src/_common/service/authToken.service';
+const { v4: uuidv4 } = require('uuid');
 
 @Injectable()
 export class WalletService {
@@ -20,23 +21,34 @@ export class WalletService {
     this.privy = new PrivyClient(appId, appSecret);
   }
 
-  async createServerWallet(id: string, authToken: string) {
+  async createServerWallet(id: string, authToken: string): Promise<WalletApiCreateResponseType[]> {
+    const idempotencyKey_ETH = uuidv4();
+    const idempotencyKey_SOL = uuidv4();
+
+    console.log("idempotency key:" + idempotencyKey_ETH);
+    console.log("idempotency key:" + idempotencyKey_SOL);
+
+
     const verifiedAuthToken =
       await this.authTokenService.verifyAuthToken(authToken);
     if (!verifiedAuthToken) {
       throw new Error('User is not verified.');
     }
     console.log('Inside creating server wallet')
-
-    // const walletCreationInput: WalletApiCreateRequestType = {
-    //   chainType: 'ethereum',
-    //   authorizationKeyIds: []
-    // }
-    const wallet = await this.privy.walletApi.create({
+  
+    const wallet_ETH = await this.privy.walletApi.create({
       chainType: 'ethereum',
       authorizationKeyIds: [id],
-      auth
+      idempotencyKey:idempotencyKey_ETH
+    });
+
+
+    const wallet_SOL = await this.privy.walletApi.create({
+      chainType: 'solana',
+      authorizationKeyIds: [id],
+      idempotencyKey:idempotencyKey_SOL
     })
-    return wallet;
+    
+    return [wallet_ETH, wallet_SOL];
   }
 }

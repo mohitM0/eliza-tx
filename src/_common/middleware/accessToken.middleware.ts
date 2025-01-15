@@ -5,6 +5,8 @@ import { Request, Response, NextFunction } from 'express';
 export class AccessTokenMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     // Extract the Authorization header
+    console.log("start");
+    
     const authHeader = req.headers['authorization'];
 
     if (!authHeader) {
@@ -19,6 +21,7 @@ export class AccessTokenMiddleware implements NestMiddleware {
 
     // Attach the token to the request object for further processing
     req['authToken'] = token;
+    console.log(token)
 
     // Continue to the next middleware or route handler
     next();
