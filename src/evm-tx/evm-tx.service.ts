@@ -9,7 +9,7 @@ export class EvmTxService {
     const walletProvider = await initWalletProvider();
     const action = new TransferAction(walletProvider);
     const result = await action.transfer(TransferPayload);
-    console.log(result);
+    console.log("Transaction output: ", result);
     
     return result;
   }

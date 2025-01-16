@@ -54,7 +54,7 @@ export class WalletService {
       idempotencyKey: idempotencyKey_SOL,
     });
 
-    // const tx = await this.privy.walletApi.rpc
+    // const tx = await this.privy.walletApi.
     return [wallet_ETH, wallet_SOL];
   }
 }
