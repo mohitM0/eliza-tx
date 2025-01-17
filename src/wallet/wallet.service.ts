@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
   PrivyClient,
-  User,
-  WalletApiCreateRequestType,
   WalletApiCreateResponseType,
 } from '@privy-io/server-auth';
 import AuthTokenService from 'src/_common/service/authToken.service';
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class WalletService {

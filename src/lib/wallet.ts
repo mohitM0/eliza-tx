@@ -181,14 +181,12 @@ export class WalletProvider {
   }
 }
 
-const genChainsFromRuntime = (
-): Record<string, Chain> => {
-  const chainNames: SupportedChain[] = ['sepolia', 'mainnet','bscTestnet'];
+const genChainsFromRuntime = (): Record<string, Chain> => {
+  const chainNames: SupportedChain[] = ['sepolia', 'mainnet', 'bscTestnet'];
   const chains = {};
 
   chainNames.forEach((chainName) => {
-    const rpcUrl = 
-      process.env['ETHEREUM_PROVIDER' + chainName.toUpperCase()];
+    const rpcUrl = process.env['ETHEREUM_PROVIDER' + chainName.toUpperCase()];
     const chain = WalletProvider.genChainFromName(chainName, rpcUrl);
     chains[chainName] = chain;
   });
@@ -214,52 +212,50 @@ export const initWalletProvider = async () => {
 };
 
 export class TransferAction {
-    constructor(private walletProvider: WalletProvider) {}
+  constructor(private walletProvider: WalletProvider) {}
 
-    async transfer(params: TransferDTO): Promise<Transaction> {
-        console.log(
-            `Transferring: ${params.amount} tokens to (${params.toAddress} on ${params.fromChain})`
-        );
+  async transfer(params: TransferDTO): Promise<Transaction> {
+    console.log(
+      `Transferring: ${params.amount} tokens to (${params.toAddress} on ${params.fromChain})`,
+    );
 
-        if (!params.data) {
-            params.data = "0x";
-        }
-
-        this.walletProvider.switchChain(params.fromChain);
-
-        const walletClient = this.walletProvider.getWalletClient(
-            params.fromChain
-        );
-
-        try {
-            const hash = await walletClient.sendTransaction({
-                account: walletClient.account,
-                to: params.toAddress,
-                value: parseEther(params.amount),
-                data: params.data as Hex,
-                kzg: {
-                    blobToKzgCommitment: function (_: ByteArray): ByteArray {
-                        throw new Error("Function not implemented.");
-                    },
-                    computeBlobKzgProof: function (
-                        _blob: ByteArray,
-                        _commitment: ByteArray
-                    ): ByteArray {
-                        throw new Error("Function not implemented.");
-                    },
-                },
-                chain: undefined,
-            });
-
-            return {
-                hash,
-                from: walletClient.account.address,
-                to: params.toAddress,
-                value: parseEther(params.amount),
-                data: params.data as Hex,
-            };
-        } catch (error) {
-            throw new Error(`Transfer failed: ${error.message}`);
-        }
+    if (!params.data) {
+      params.data = '0x';
     }
+
+    this.walletProvider.switchChain(params.fromChain);
+
+    const walletClient = this.walletProvider.getWalletClient(params.fromChain);
+
+    try {
+      const hash = await walletClient.sendTransaction({
+        account: walletClient.account,
+        to: params.toAddress,
+        value: parseEther(params.amount),
+        data: params.data as Hex,
+        kzg: {
+          blobToKzgCommitment: function (_: ByteArray): ByteArray {
+            throw new Error('Function not implemented.');
+          },
+          computeBlobKzgProof: function (
+            _blob: ByteArray,
+            _commitment: ByteArray,
+          ): ByteArray {
+            throw new Error('Function not implemented.');
+          },
+        },
+        chain: undefined,
+      });
+
+      return {
+        hash,
+        from: walletClient.account.address,
+        to: params.toAddress,
+        value: parseEther(params.amount),
+        data: params.data as Hex,
+      };
+    } catch (error) {
+      throw new Error(`Transfer failed: ${error.message}`);
+    }
+  }
 }

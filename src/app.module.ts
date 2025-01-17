@@ -11,10 +11,8 @@ import { WalletController } from './wallet/wallet.controller';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule implements NestModule{
+export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AccessTokenMiddleware)
-      .forRoutes(WalletController);
+    consumer.apply(AccessTokenMiddleware).forRoutes(WalletController);
   }
 }

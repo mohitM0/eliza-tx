@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { AuthTokenClaims, PrivyClient } from '@privy-io/server-auth';
 import * as dotenv from 'dotenv';
 
-
 dotenv.config();
 
 @Injectable()
@@ -24,18 +23,16 @@ export default class AuthTokenService {
   async verifyAuthToken(authToken: string): Promise<AuthTokenClaims> {
     try {
       const verificationKey = process.env.VERIFICATION_KEY;
-      console.log("verification key: " + verificationKey);
+      console.log('verification key: ' + verificationKey);
       if (!verificationKey) {
         throw new Error(
           'Verification Key must be set in environment variables.',
         );
       }
-      const verifiedClaims = await this.privy.verifyAuthToken(
-        authToken
-      );
+      const verifiedClaims = await this.privy.verifyAuthToken(authToken);
 
-      console.log("verifiedClaims:" + verifiedClaims.appId);
-      
+      console.log('verifiedClaims:' + verifiedClaims.appId);
+
       return verifiedClaims;
     } catch (error) {
       console.error(`Token verification failed with error: ${error.message}`);
