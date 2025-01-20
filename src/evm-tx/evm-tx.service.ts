@@ -10,8 +10,10 @@ import { PrivyClient } from '@privy-io/server-auth';
 import AuthTokenService from 'src/_common/service/authToken.service';
 import WalletClientService from 'src/_common/service/walletClient.service';
 import {
+  createConfig,
   // createConfig,
   executeRoute,
+  ExtendedChain,
   // ExtendedChain,
   getRoutes,
 } from '@lifi/sdk';
@@ -20,8 +22,8 @@ import { ByteArray, Hex, parseEther } from 'viem';
 @Injectable()
 export class EvmTxService {
   private readonly privy: PrivyClient;
-  // private swapConfig;
-  // private bridgeConfig;
+  private swapConfig;
+  private bridgeConfig;
 
   constructor(private walletClientService: WalletClientService) {
     const appId = process.env.PRIVY_APP_ID;
@@ -34,6 +36,67 @@ export class EvmTxService {
     }
 
     this.privy = new PrivyClient(appId, appSecret);
+
+    this.swapConfig = createConfig({
+      integrator: 'eliza',
+      chains: Object.values(walletClientService.chains).map((config) => ({
+        id: config.id,
+        name: config.name,
+        key: config.name.toLowerCase(),
+        chainType: 'EVM' as const,
+        nativeToken: {
+          ...config.nativeCurrency,
+          chainId: config.id,
+          address: '0x0000000000000000000000000000000000000000',
+          coinKey: config.nativeCurrency.symbol,
+          priceUSD: '0',
+          logoURI: '',
+          symbol: config.nativeCurrency.symbol,
+          decimals: config.nativeCurrency.decimals,
+          name: config.nativeCurrency.name,
+        },
+        rpcUrls: {
+          public: { http: [config.rpcUrls.default.http[0]] },
+        },
+        blockExplorerUrls: [config.blockExplorers.default.url],
+        metamask: {
+          chainId: `0x${config.id.toString(16)}`,
+          chainName: config.name,
+          nativeCurrency: config.nativeCurrency,
+          rpcUrls: [config.rpcUrls.default.http[0]],
+          blockExplorerUrls: [config.blockExplorers.default.url],
+        },
+        coin: config.nativeCurrency.symbol,
+        mainnet: true,
+        diamondAddress: '0x0000000000000000000000000000000000000000',
+      })) as ExtendedChain[],
+    });
+
+    this.bridgeConfig = createConfig({
+      integrator: 'eliza',
+      chains: Object.values(walletClientService.chains).map((config) => ({
+        id: config.id,
+        name: config.name,
+        key: config.name.toLowerCase(),
+        chainType: 'EVM',
+        nativeToken: {
+          ...config.nativeCurrency,
+          chainId: config.id,
+          address: '0x0000000000000000000000000000000000000000',
+          coinKey: config.nativeCurrency.symbol,
+        },
+        metamask: {
+          chainId: `0x${config.id.toString(16)}`,
+          chainName: config.name,
+          nativeCurrency: config.nativeCurrency,
+          rpcUrls: [config.rpcUrls.default.http[0]],
+          blockExplorerUrls: [config.blockExplorers.default.url],
+        },
+        diamondAddress: '0x0000000000000000000000000000000000000000',
+        coin: config.nativeCurrency.symbol,
+        mainnet: true,
+      })) as ExtendedChain[],
+    });
   }
 
   async transfer(
@@ -112,7 +175,7 @@ export class EvmTxService {
 
     if (!routes.routes.length) throw new Error('No routes found');
 
-    const execution = await executeRoute(routes.routes[0], this.config);
+    const execution = await executeRoute(routes.routes[0], this.swapConfig);
     const process = execution.steps[0]?.execution?.process[0];
 
     if (!process?.status || process.status === 'FAILED') {
@@ -155,7 +218,7 @@ export class EvmTxService {
 
     if (!routes.routes.length) throw new Error('No routes found');
 
-    const execution = await executeRoute(routes.routes[0], this.config);
+    const execution = await executeRoute(routes.routes[0], this.bridgeConfig);
     const process = execution.steps[0]?.execution?.process[0];
 
     if (!process?.status || process.status === 'FAILED') {

@@ -74,7 +74,7 @@ export class WalletService {
     //   throw new Error('User is not verified.');
     // }
     
-    const walletClient = await this.walletClientService.createWalletClient(authToken, sepolia);
+    const walletClient = await this.walletClientService.createWalletClient(authToken, 'sepolia');
 
     return walletClient;
   }
