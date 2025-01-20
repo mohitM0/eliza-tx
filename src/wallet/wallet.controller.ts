@@ -1,7 +1,7 @@
 import { Body, Controller, Post, Req } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { CreateServerWalletDto } from './dto/create-server-wallet.dto';
-import { WalletApiCreateResponseType } from '@privy-io/server-auth';
+import { WalletApiWalletResponseType } from '@privy-io/server-auth';
 
 @Controller('wallet')
 export class WalletController {
@@ -11,7 +11,7 @@ export class WalletController {
   createServerWallet(
     @Req() req: Request,
     @Body() createServerWalletDto: CreateServerWalletDto,
-  ): Promise<WalletApiCreateResponseType[]> {
+  ): Promise<WalletApiWalletResponseType[]> {
     const authToken = req['authToken'];
 
     return this.walletService.createServerWallet(

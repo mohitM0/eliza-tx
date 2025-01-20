@@ -6,7 +6,14 @@ import { Transaction, TransferDTO } from './dto/create-evm-tx.dto';
 export class EvmTxController {
   constructor(private readonly evmTxService: EvmTxService) {}
   @Post('transfer')
-  transfer(@Body() transferDTO: TransferDTO): Promise<Transaction> {
-    return this.evmTxService.transfer(transferDTO);
-  }
+    transfer(
+      @Body() transferDTO: TransferDTO,
+    ):Promise<Transaction>{
+      return this.evmTxService.transfer(transferDTO)
+    }
+
+    @Post('signMessage')
+    signMessage(): Promise<any>{
+      return this.evmTxService.signMessage();
+    }
 }
