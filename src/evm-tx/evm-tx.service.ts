@@ -1,13 +1,23 @@
 import { Injectable } from '@nestjs/common';
-import { Transaction, TransferDTO } from './dto/create-evm-tx.dto';
+import { SwapPayload, Transaction, TransferDTO } from './dto/create-evm-tx.dto';
 import { initWalletProvider, TransferAction } from 'src/lib/wallet';
 import { PrivyClient } from '@privy-io/server-auth';
 import AuthTokenService from 'src/_common/service/authToken.service';
+import WalletClientService from 'src/_common/service/walletClient.service';
+import {
+  // createConfig,
+  executeRoute,
+  // ExtendedChain,
+  getRoutes,
+} from "@lifi/sdk";
 
 @Injectable()
 export class EvmTxService {
   private readonly privy: PrivyClient;
-  constructor() {
+  // private swapConfig;
+  // private bridgeConfig;
+
+  constructor(private walletClientService: WalletClientService ) {
     const appId = process.env.PRIVY_APP_ID;
     const appSecret = process.env.PRIVY_APP_SECRET;
 
@@ -29,15 +39,49 @@ export class EvmTxService {
     return result;
   }
 
-  async signMessage(): Promise<any>{
-    console.log("inside service file")
-    const data = await this.privy.walletApi.ethereum.signMessage({
-      walletId: 'cm5z37m8u0acaxy1tpqqpo60h',
-      message: 'Hello world'
+  async swap(SwapPayload: SwapPayload, authToken: string): Promise<Transaction>{
+
+    const walletClient= await this.walletClientService.createWalletClient(authToken, SwapPayload.chain);
+    const [fromAddress] = await walletClient.getAddresses();
+
+    const routes = await getRoutes({
+        fromChainId: walletClient.getChainConfigs(SwapPayload.chain).id,
+        toChainId: walletClient.getChainConfigs(SwapPayload.chain).id,
+        fromTokenAddress: SwapPayload.fromToken,
+        toTokenAddress: SwapPayload.toToken,
+        fromAmount: SwapPayload.amount,
+        fromAddress: fromAddress,
+        options: {
+            slippage: SwapPayload.slippage || 0.5,
+            order: "RECOMMENDED",
+            fee: 0.02,
+            integrator: "elizaM0"
+
+        }
     });
-    // Get the signature and encoding from the response
-    const {signature, encoding} = data;
-    console.log(data);
-    return data;
-  }
+
+    if (!routes.routes.length) throw new Error("No routes found");
+
+    const execution = await executeRoute(routes.routes[0], this.config);
+    const process = execution.steps[0]?.execution?.process[0];
+
+    if (!process?.status || process.status === "FAILED") {
+        throw new Error("Transaction failed");
+    }
+
+    return {
+        hash: process.txHash as `0x${string}`,
+        from: fromAddress,
+        to: routes.routes[0].steps[0].estimate
+            .approvalAddress as `0x${string}`,
+        value: BigInt(SwapPayload.amount),
+        data: process.data as `0x${string}`,
+        chainId: walletClient.getChainConfigs(SwapPayload.chain).id,
+    };
+}
+
+  // async bridge(BridgePayload:  ): Promise<Transaction>{
+
+  // }
+
 }
