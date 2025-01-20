@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { Transaction, TransferDTO } from './dto/create-evm-tx.dto';
+import { SwapDTO, Transaction, TransferDTO } from './dto/create-evm-tx.dto';
 import { initWalletProvider, TransferAction } from 'src/lib/wallet';
 import { PrivyClient } from '@privy-io/server-auth';
 import AuthTokenService from 'src/_common/service/authToken.service';
+import {
+  getQuote,
+  QuoteRequest,
+  convertQuoteToRoute,
+  executeRoute,
+} from '@lifi/sdk';
 
 @Injectable()
 export class EvmTxService {
@@ -39,5 +45,32 @@ export class EvmTxService {
     const { signature, encoding } = data;
     console.log(data);
     return data;
+  }
+
+  async swap(data: SwapDTO) {
+    //TODO: Set the config for the SDK with the user wallet client
+    const quoteRequest: QuoteRequest = {
+      fromChain: data.fromChain,
+      toChain: data.toChain,
+      fromToken: data.fromTokenAddress,
+      toToken: data.toTokenAddress,
+      fromAmount: data.amount, // converted to the decimal of that token
+      // The address from which the tokens are being transferred.
+      fromAddress: data.fromAddress,
+    };
+
+    const quote = await getQuote(quoteRequest);
+
+    const route = convertQuoteToRoute(quote);
+
+    const executedRoute = await executeRoute(route, {
+      // Gets called once the route object gets new updates
+      updateRouteHook(route) {
+        console.log(route); // check the response and after testing check what to return
+        return route;
+      },
+    });
+
+    return executedRoute;
   }
 }

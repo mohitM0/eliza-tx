@@ -1,6 +1,6 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { EvmTxService } from './evm-tx.service';
-import { Transaction, TransferDTO } from './dto/create-evm-tx.dto';
+import { SwapDTO, Transaction, TransferDTO } from './dto/create-evm-tx.dto';
 
 @Controller('evm-tx')
 export class EvmTxController {
@@ -13,5 +13,10 @@ export class EvmTxController {
   @Post('signMessage')
   signMessage(): Promise<any> {
     return this.evmTxService.signMessage();
+  }
+
+  @Post('swap')
+  swap(@Body() data: SwapDTO): Promise<any> {
+    return this.evmTxService.swap(data);
   }
 }
