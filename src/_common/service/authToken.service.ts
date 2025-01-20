@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AuthTokenClaims, PrivyClient } from '@privy-io/server-auth';
 import * as dotenv from 'dotenv';
-import {createViemAccount} from '@privy-io/server-auth/viem';
-
+import { createViemAccount } from '@privy-io/server-auth/viem';
 
 dotenv.config();
 

@@ -19,7 +19,7 @@ export class EvmTxService {
 
     this.privy = new PrivyClient(appId, appSecret);
   }
-  
+
   async transfer(TransferPayload: TransferDTO): Promise<Transaction> {
     const walletProvider = await initWalletProvider();
     const action = new TransferAction(walletProvider);
@@ -29,14 +29,14 @@ export class EvmTxService {
     return result;
   }
 
-  async signMessage(): Promise<any>{
-    console.log("inside service file")
+  async signMessage(): Promise<any> {
+    console.log('inside service file');
     const data = await this.privy.walletApi.ethereum.signMessage({
       walletId: 'cm5z37m8u0acaxy1tpqqpo60h',
-      message: 'Hello world'
+      message: 'Hello world',
     });
     // Get the signature and encoding from the response
-    const {signature, encoding} = data;
+    const { signature, encoding } = data;
     console.log(data);
     return data;
   }

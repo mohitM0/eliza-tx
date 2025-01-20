@@ -7,7 +7,6 @@ import AuthTokenService from 'src/_common/service/authToken.service';
 import { v4 as uuidv4 } from 'uuid';
 // import {createViemAccount} from '@privy-io/server-auth/viem';
 
-
 @Injectable()
 export class WalletService {
   private readonly privy: PrivyClient;
