@@ -19,6 +19,7 @@ import type {
 } from 'viem';
 import * as viemChains from 'viem/chains';
 import { Transaction, TransferDTO } from 'src/evm-tx/dto/create-evm-tx.dto';
+import { createConfig, EVM } from '@lifi/sdk';
 
 const _SupportedChainList = Object.keys(viemChains) as Array<
   keyof typeof viemChains
@@ -257,5 +258,23 @@ export class TransferAction {
     } catch (error) {
       throw new Error(`Transfer failed: ${error.message}`);
     }
+  }
+}
+
+export class lifiConfig {
+  async createLifiConfig() {
+    const init = await initWalletProvider();
+
+    const walletClient = await init.getWalletClient('mainnet');
+    const evmProvider = EVM({
+      getWalletClient: async () => walletClient,
+    });
+
+    const config = createConfig({
+      integrator: 'Your dApp/company name',
+      providers: [evmProvider],
+    });
+
+    return config;
   }
 }
