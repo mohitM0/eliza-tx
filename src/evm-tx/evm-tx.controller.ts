@@ -11,4 +11,9 @@ export class EvmTxController {
     ):Promise<Transaction>{
       return this.evmTxService.transfer(transferDTO)
     }
+
+    @Post('signMessage')
+    signMessage(): Promise<any>{
+      return this.evmTxService.signMessage();
+    }
 }
