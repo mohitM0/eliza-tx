@@ -2,16 +2,22 @@ import { Injectable } from '@nestjs/common';
 import {
   PrivyClient,
   WalletApiWalletResponseType,
+  User,
+  AuthTokenClaims,
 } from '@privy-io/server-auth';
+import { createViemAccount } from '@privy-io/server-auth/viem';
 import AuthTokenService from 'src/_common/service/authToken.service';
+import WalletClientService from 'src/_common/service/walletClient.service';
+import { createWalletClient, http } from 'viem';
+import { sepolia } from 'viem/chains';
 const { v4: uuidv4 } = require('uuid');
-// import {createViemAccount} from '@privy-io/server-auth/viem';
-
 
 @Injectable()
 export class WalletService {
   private readonly privy: PrivyClient;
-  constructor(private authTokenService: AuthTokenService) {
+  constructor(private authTokenService: AuthTokenService,
+    private walletClientService: WalletClientService
+  ) {
     const appId = process.env.PRIVY_APP_ID;
     const appSecret = process.env.PRIVY_APP_SECRET;
 
@@ -59,5 +65,17 @@ export class WalletService {
 
     // const tx = await this.privy.walletApi.
     return [wallet_ETH, wallet_SOL] as WalletApiWalletResponseType[];
+  }
+
+  async createWalletClient(authToken: string): Promise<any> {
+    // const verifiedAuthToken =
+    //   await this.authTokenService.verifyAuthToken(authToken);
+    // if (!verifiedAuthToken) {
+    //   throw new Error('User is not verified.');
+    // }
+    
+    const walletClient = await this.walletClientService.createWalletClient(authToken, sepolia);
+
+    return walletClient;
   }
 }

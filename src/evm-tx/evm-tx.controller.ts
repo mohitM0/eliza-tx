@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { EvmTxService } from './evm-tx.service';
 import { Transaction, TransferDTO } from './dto/create-evm-tx.dto';
 
@@ -7,13 +7,11 @@ export class EvmTxController {
   constructor(private readonly evmTxService: EvmTxService) {}
   @Post('transfer')
     transfer(
+      @Req() req: Request,
       @Body() transferDTO: TransferDTO,
     ):Promise<Transaction>{
-      return this.evmTxService.transfer(transferDTO)
+      const authToken = req['authToken'];
+      return this.evmTxService.transfer(transferDTO, authToken)
     }
 
-    @Post('signMessage')
-    signMessage(): Promise<any>{
-      return this.evmTxService.signMessage();
-    }
 }
