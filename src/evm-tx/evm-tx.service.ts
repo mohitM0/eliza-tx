@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { SwapPayload, Transaction, TransferDTO } from './dto/create-evm-tx.dto';
+import {
+  BridgePayload,
+  SwapPayload,
+  Transaction,
+  TransferDTO,
+} from './dto/create-evm-tx.dto';
 import { initWalletProvider, TransferAction } from 'src/lib/wallet';
 import { PrivyClient } from '@privy-io/server-auth';
 import AuthTokenService from 'src/_common/service/authToken.service';
@@ -35,7 +40,6 @@ export class EvmTxService {
     TransferPayload: TransferDTO,
     authToken: string,
   ): Promise<Transaction> {
-
     const walletClient = await this.walletClientService.createWalletClient(
       authToken,
       TransferPayload.fromChain,
@@ -125,7 +129,45 @@ export class EvmTxService {
     };
   }
 
-  // async bridge(BridgePayload:  ): Promise<Transaction>{
+  async bridge(
+    BridgePayload: BridgePayload,
+    authToken: string,
+  ): Promise<Transaction> {
+    const walletClient = await this.walletClientService.createWalletClient(
+      authToken,
+      BridgePayload.fromChain,
+    );
+    const [fromAddress] = await walletClient.getAddresses();
 
-  // }
+    const routes = await getRoutes({
+      fromChainId: walletClient.getChainConfigs(BridgePayload.fromChain).id,
+      toChainId: walletClient.getChainConfigs(BridgePayload.toChain).id,
+      fromTokenAddress: BridgePayload.fromToken,
+      toTokenAddress: BridgePayload.toToken,
+      fromAmount: BridgePayload.amount,
+      fromAddress: fromAddress,
+      toAddress: BridgePayload.toAddress || fromAddress,
+      options: {
+        fee: 0.02,
+        integrator: 'elizaM0',
+      },
+    });
+
+    if (!routes.routes.length) throw new Error('No routes found');
+
+    const execution = await executeRoute(routes.routes[0], this.config);
+    const process = execution.steps[0]?.execution?.process[0];
+
+    if (!process?.status || process.status === 'FAILED') {
+      throw new Error('Transaction failed');
+    }
+
+    return {
+      hash: process.txHash as `0x${string}`,
+      from: fromAddress,
+      to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
+      value: BigInt(BridgePayload.amount),
+      chainId: walletClient.getChainConfigs(BridgePayload.fromChain).id,
+    };
+  }
 }
