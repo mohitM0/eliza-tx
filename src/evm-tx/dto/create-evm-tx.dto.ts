@@ -21,7 +21,14 @@ export class SwapPayload {
   slippage?: number;
 }
 
-export class BridgePayload {}
+export class BridgePayload {
+  fromChain: SupportedChain;
+  toChain: SupportedChain;
+  fromToken: Address;
+  toToken: Address;
+  amount: string;
+  toAddress?: Address;
+}
 
 export interface Transaction {
   hash: Hash;
