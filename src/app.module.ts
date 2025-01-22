@@ -5,6 +5,7 @@ import { EvmTxModule } from './evm-tx/evm-tx.module';
 import { WalletModule } from './wallet/wallet.module';
 import { AccessTokenMiddleware } from './_common/middleware/accessToken.middleware';
 import { WalletController } from './wallet/wallet.controller';
+import { EvmTxController } from './evm-tx/evm-tx.controller';
 
 @Module({
   imports: [EvmTxModule, WalletModule],
@@ -15,6 +16,6 @@ export class AppModule implements NestModule{
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(AccessTokenMiddleware)
-      .forRoutes(WalletController);
+      .forRoutes(WalletController, EvmTxController);
   }
 }

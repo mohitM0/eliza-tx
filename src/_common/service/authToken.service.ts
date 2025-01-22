@@ -24,6 +24,7 @@ export default class AuthTokenService {
 
   async verifyAuthToken(authToken: string): Promise<AuthTokenClaims> {
     try {
+      console.log("authToken: ", authToken)
       const verificationKey = process.env.VERIFICATION_KEY;
       console.log("verification key: " + verificationKey);
       if (!verificationKey) {
@@ -31,6 +32,7 @@ export default class AuthTokenService {
           'Verification Key must be set in environment variables.',
         );
       }
+      
       const verifiedClaims = await this.privy.verifyAuthToken(
         authToken
       );

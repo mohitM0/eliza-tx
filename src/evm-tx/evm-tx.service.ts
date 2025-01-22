@@ -17,7 +17,17 @@ import {
   // ExtendedChain,
   getRoutes,
 } from '@lifi/sdk';
-import { ByteArray, Hex, parseEther } from 'viem';
+import {
+  Account,
+  ByteArray,
+  createPublicClient,
+  Hex,
+  http,
+  LocalAccount,
+  parseEther,
+  WalletClient,
+} from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 
 @Injectable()
 export class EvmTxService {
@@ -103,11 +113,14 @@ export class EvmTxService {
     TransferPayload: TransferDTO,
     authToken: string,
   ): Promise<Transaction> {
-    const walletClient = await this.walletClientService.createWalletClient(
-      authToken,
-      TransferPayload.fromChain,
-    );
+    const walletClient: WalletClient =
+      await this.walletClientService.createWalletClient(
+        authToken,
+        TransferPayload.fromChain,
+      );
 
+    const localAccount: Account =
+      await this.walletClientService.createLocalAccount(authToken);
     console.log(
       `Transferring: ${TransferPayload.amount} tokens to (${TransferPayload.toAddress} on ${TransferPayload.fromChain})`,
     );
@@ -115,28 +128,112 @@ export class EvmTxService {
     if (!TransferPayload.data) {
       TransferPayload.data = '0x';
     }
-    await walletClient.switchChain(TransferPayload.fromChain);
+    const fromChain =
+      this.walletClientService.chains[TransferPayload.fromChain];
+
     try {
-      const hash = await walletClient.sendTransaction({
-        account: walletClient.account,
-        to: TransferPayload.toAddress,
-        value: parseEther(TransferPayload.amount),
-        data: TransferPayload.data as Hex,
-        kzg: {
-          blobToKzgCommitment: function (_: ByteArray): ByteArray {
-            throw new Error('Function not implemented.');
-          },
-          computeBlobKzgProof: function (
-            _blob: ByteArray,
-            _commitment: ByteArray,
-          ): ByteArray {
-            throw new Error('Function not implemented.');
-          },
-        },
-        chain: undefined,
-      });
+      try {
+        // const hash = await this.privy.walletApi.ethereum.sendTransaction({
+        //   walletId: 'did:privy:cm5zg7mos0351lno23pz91sgv',
+        //   caip2: `eip155:${fromChain.id}`,
+        //   transaction: {
+        //     to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
+        //     value: parseEther(TransferPayload.amount),
+        //     chainId: fromChain.id,
+        //   },
+        // })
+        console.log('above');
+
+        // const txData = await walletClient.prepareTransactionRequest({
+        //   account: walletClient.account.address,
+        //   to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
+        //   value: parseEther(TransferPayload.amount),
+        //   data: TransferPayload.data as Hex,
+        //   chain: fromChain,
+        //   kzg: {
+        //     blobToKzgCommitment: function (_: ByteArray): ByteArray {
+        //       throw new Error('Function not implemented.');
+        //     },
+        //     computeBlobKzgProof: function (
+        //       _blob: ByteArray,
+        //       _commitment: ByteArray,
+        //     ): ByteArray {
+        //       throw new Error('Function not implemented.');
+        //     },
+        //   },
+        // });
+
+        // console.log('txData: ', txData);
+
+        console.log('local account: ', localAccount);
+
+        const acc = privateKeyToAccount(
+          '0x1523ae53ba92b720fcebe94671d7d3572bd380e0732226bf6e44efa3bb01cfa6',
+        );
+        console.log('acc: ', acc);
+        
+        const publicClient = createPublicClient({
+          chain: fromChain, // Use the chain you're working with, e.g., Sepolia
+          transport: http('https://sepolia.infura.io/v3/83d21f55255f46aba00654f32fc0a153'),
+        });
+        const nonce = await publicClient.getTransactionCount({ address: localAccount.address });
+
+
+        const serializedTransaction = await localAccount.signTransaction({
+          to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
+          value: parseEther(TransferPayload.amount),
+          data: TransferPayload.data as Hex,
+          chainId: fromChain.id,
+          nonce: Number(nonce),
+          gas: BigInt(21000), 
+          maxFeePerGas: BigInt(50000000000), 
+          maxPriorityFeePerGas: BigInt(2000000000), 
+        });
+        console.log('serializedTransaction: ', serializedTransaction);
+
+        const hash = await walletClient.sendRawTransaction({
+          serializedTransaction,
+        });
+
+        // const hash = await walletClient.sendTransaction(txData);
+
+        // const data = await this.privy.walletApi.ethereum.sendTransaction({
+        //   address: walletClient.account.address.toLowerCase(),
+        //   chainType: 'ethereum',
+        //   caip2: `eip155:${fromChain.id}`,
+
+        //   transaction: {
+        //     to: TransferPayload.toAddress.toLowerCase(),
+        //     value: parseEther(TransferPayload.amount),
+        //     chainId: fromChain.id,
+        //   },
+        // });
+        // Get the signed transaction and encoding from the response
+        // const {hash} = data;
+
+        // const serializedTransaction =
+        //   await walletClient.signTransaction({
+        //     account: walletClient.account.address,
+        //     to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
+        //     value: parseEther(TransferPayload.amount),
+        //     data: TransferPayload.data as Hex,
+        //     chain: fromChain,
+        //   });
+
+        // console.log('serializedTransaction: ', serializedTransaction);
+
+        // const hash = await walletClient.sendRawTransaction({
+        //   //@ts-ignore
+        //   serializedTransaction,
+        // });
+
+        console.log('hash: ', hash);
+      } catch (error) {
+        console.error('Error signing transaction:', error);
+      }
 
       return {
+        // @ts-ignore
         hash,
         from: walletClient.account.address,
         to: TransferPayload.toAddress,
@@ -152,15 +249,16 @@ export class EvmTxService {
     SwapPayload: SwapPayload,
     authToken: string,
   ): Promise<Transaction> {
-    const walletClient = await this.walletClientService.createWalletClient(
-      authToken,
-      SwapPayload.chain,
-    );
+    const walletClient: WalletClient =
+      await this.walletClientService.createWalletClient(
+        authToken,
+        SwapPayload.chain,
+      );
     const [fromAddress] = await walletClient.getAddresses();
 
     const routes = await getRoutes({
-      fromChainId: walletClient.getChainConfigs(SwapPayload.chain).id,
-      toChainId: walletClient.getChainConfigs(SwapPayload.chain).id,
+      fromChainId: this.walletClientService.chains[SwapPayload.chain].id,
+      toChainId: this.walletClientService.chains[SwapPayload.chain].id,
       fromTokenAddress: SwapPayload.fromToken,
       toTokenAddress: SwapPayload.toToken,
       fromAmount: SwapPayload.amount,
@@ -188,7 +286,7 @@ export class EvmTxService {
       to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
       value: BigInt(SwapPayload.amount),
       data: process.data as `0x${string}`,
-      chainId: walletClient.getChainConfigs(SwapPayload.chain).id,
+      chainId: this.walletClientService.chains[SwapPayload.chain].id,
     };
   }
 
@@ -203,8 +301,8 @@ export class EvmTxService {
     const [fromAddress] = await walletClient.getAddresses();
 
     const routes = await getRoutes({
-      fromChainId: walletClient.getChainConfigs(BridgePayload.fromChain).id,
-      toChainId: walletClient.getChainConfigs(BridgePayload.toChain).id,
+      fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+      toChainId: this.walletClientService.chains[BridgePayload.toChain].id,
       fromTokenAddress: BridgePayload.fromToken,
       toTokenAddress: BridgePayload.toToken,
       fromAmount: BridgePayload.amount,
@@ -230,7 +328,7 @@ export class EvmTxService {
       from: fromAddress,
       to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
       value: BigInt(BridgePayload.amount),
-      chainId: walletClient.getChainConfigs(BridgePayload.fromChain).id,
+      chainId: this.walletClientService.chains[BridgePayload.fromChain].id,
     };
   }
 }

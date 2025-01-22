@@ -7,7 +7,7 @@ export class AccessTokenMiddleware implements NestMiddleware {
     // Extract the Authorization header
     
     const authHeader = req.headers['authorization'];
-
+    console.log("authHeader", authHeader);
     if (!authHeader) {
       throw new HttpException('Authorization header is missing', HttpStatus.UNAUTHORIZED);
     }
@@ -18,6 +18,8 @@ export class AccessTokenMiddleware implements NestMiddleware {
       throw new HttpException('Invalid Authorization header format', HttpStatus.UNAUTHORIZED);
     }
 
+    console.log("token", token);
+    
     // Attach the token to the request object for further processing
     req['authToken'] = token;
 
