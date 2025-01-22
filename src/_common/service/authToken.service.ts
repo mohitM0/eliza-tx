@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { AuthTokenClaims, PrivyClient } from '@privy-io/server-auth';
 import * as dotenv from 'dotenv';
 
-
-
 dotenv.config();
 
 @Injectable()
@@ -19,7 +17,11 @@ export default class AuthTokenService {
       );
     }
 
-    this.privy = new PrivyClient(appId, appSecret);
+    this.privy = new PrivyClient(appId, appSecret, {
+      walletApi: {
+        authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
+      }
+    });
   }
 
   async verifyAuthToken(authToken: string): Promise<AuthTokenClaims> {

@@ -39,10 +39,14 @@ export default class WalletClientService {
       );
     }
 
-    this.privy = new PrivyClient(appId, appSecret);
+    this.privy = new PrivyClient(appId, appSecret, {
+      walletApi: {
+        authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
+      }
+    });
   }
 
-  async createLocalAccount(authToken: string): Promise<LocalAccount> {
+  async createLocalAccount(authToken: string): Promise<Account> {
     try {
       const verifiedAuthToken =
         await this.authTokenService.verifyAuthToken(authToken);

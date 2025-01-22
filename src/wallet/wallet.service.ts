@@ -11,6 +11,9 @@ import WalletClientService from 'src/_common/service/walletClient.service';
 import { createWalletClient, http } from 'viem';
 import { sepolia } from 'viem/chains';
 const { v4: uuidv4 } = require('uuid');
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 @Injectable()
 export class WalletService {
@@ -27,7 +30,11 @@ export class WalletService {
       );
     }
 
-    this.privy = new PrivyClient(appId, appSecret);
+    this.privy = new PrivyClient(appId, appSecret, {
+      walletApi: {
+        authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
+      }
+    });
   }
 
   async createServerWallet(

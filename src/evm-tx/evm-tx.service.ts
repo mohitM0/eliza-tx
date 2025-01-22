@@ -28,6 +28,10 @@ import {
   WalletClient,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import * as dotenv from 'dotenv';
+import { log } from 'console';
+
+dotenv.config();
 
 @Injectable()
 export class EvmTxService {
@@ -45,7 +49,11 @@ export class EvmTxService {
       );
     }
 
-    this.privy = new PrivyClient(appId, appSecret);
+    this.privy = new PrivyClient(appId, appSecret, {
+      walletApi: {
+        authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
+      }
+    });
 
     this.swapConfig = createConfig({
       integrator: 'eliza',
@@ -171,63 +179,58 @@ export class EvmTxService {
           '0x1523ae53ba92b720fcebe94671d7d3572bd380e0732226bf6e44efa3bb01cfa6',
         );
         console.log('acc: ', acc);
-        
+
         const publicClient = createPublicClient({
           chain: fromChain, // Use the chain you're working with, e.g., Sepolia
-          transport: http('https://sepolia.infura.io/v3/83d21f55255f46aba00654f32fc0a153'),
+          transport: http(
+            'https://sepolia.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
+          ),
         });
-        const nonce = await publicClient.getTransactionCount({ address: localAccount.address });
-
-
-        const serializedTransaction = await localAccount.signTransaction({
-          to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
-          value: parseEther(TransferPayload.amount),
-          data: TransferPayload.data as Hex,
-          chainId: fromChain.id,
-          nonce: Number(nonce),
-          gas: BigInt(21000), 
-          maxFeePerGas: BigInt(50000000000), 
-          maxPriorityFeePerGas: BigInt(2000000000), 
-        });
-        console.log('serializedTransaction: ', serializedTransaction);
-
-        const hash = await walletClient.sendRawTransaction({
-          serializedTransaction,
+        const nonce = await publicClient.getTransactionCount({
+          address: localAccount.address,
         });
 
-        // const hash = await walletClient.sendTransaction(txData);
-
-        // const data = await this.privy.walletApi.ethereum.sendTransaction({
-        //   address: walletClient.account.address.toLowerCase(),
-        //   chainType: 'ethereum',
-        //   caip2: `eip155:${fromChain.id}`,
-
-        //   transaction: {
-        //     to: TransferPayload.toAddress.toLowerCase(),
-        //     value: parseEther(TransferPayload.amount),
-        //     chainId: fromChain.id,
-        //   },
+        // const serializedTransaction = await localAccount.signMessage({message: "hello"});
+        // const serializedTransaction = await localAccount.signTransaction({
+        //   to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
+        //   value: parseEther(TransferPayload.amount),
+        //   data: TransferPayload.data as Hex,
+        //   chainId: fromChain.id,
+        //   nonce: Number(nonce),
+        //   gas: BigInt(21000),
+        //   maxFeePerGas: BigInt(50000000000),
+        //   maxPriorityFeePerGas: BigInt(2000000000),
         // });
-        // Get the signed transaction and encoding from the response
-        // const {hash} = data;
-
-        // const serializedTransaction =
-        //   await walletClient.signTransaction({
-        //     account: walletClient.account.address,
-        //     to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
-        //     value: parseEther(TransferPayload.amount),
-        //     data: TransferPayload.data as Hex,
-        //     chain: fromChain,
-        //   });
-
         // console.log('serializedTransaction: ', serializedTransaction);
 
         // const hash = await walletClient.sendRawTransaction({
-        //   //@ts-ignore
         //   serializedTransaction,
         // });
 
-        console.log('hash: ', hash);
+        // const hash = await walletClient.sendTransaction(txData);
+
+        const ethValue = parseEther(TransferPayload.amount);
+        const value = parseInt(ethValue.toString());
+        console.log(walletClient.account.address);
+        const data = await this.privy.walletApi.ethereum.sendTransaction({
+          address: walletClient.account.address.toLowerCase(),
+          chainType: 'ethereum',
+          caip2: `eip155:${fromChain.id}`,
+
+          transaction: {
+            to: TransferPayload.toAddress.toLowerCase(),
+            value,
+            chainId: fromChain.id,
+          },
+        });
+
+        // console.log(walletClient.account);
+        // const data = await this.privy.walletApi.ethereum.signMessage({
+        //   address: walletClient.account.address.toLowerCase(),
+        //   chainType: 'ethereum',
+        //   message: 'Hello world',
+        // });
+        console.log('hash: ', data);
       } catch (error) {
         console.error('Error signing transaction:', error);
       }
