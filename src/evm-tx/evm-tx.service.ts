@@ -52,7 +52,7 @@ export class EvmTxService {
     this.privy = new PrivyClient(appId, appSecret, {
       walletApi: {
         authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
-      }
+      },
     });
 
     this.swapConfig = createConfig({
@@ -173,12 +173,12 @@ export class EvmTxService {
 
         // console.log('txData: ', txData);
 
-        console.log('local account: ', localAccount);
+        // console.log('local account: ', localAccount);
 
-        const acc = privateKeyToAccount(
-          '0x1523ae53ba92b720fcebe94671d7d3572bd380e0732226bf6e44efa3bb01cfa6',
-        );
-        console.log('acc: ', acc);
+        // const acc = privateKeyToAccount(
+        //   '0x1523ae53ba92b720fcebe94671d7d3572bd380e0732226bf6e44efa3bb01cfa6',
+        // );
+        // console.log('acc: ', acc);
 
         const publicClient = createPublicClient({
           chain: fromChain, // Use the chain you're working with, e.g., Sepolia
@@ -207,21 +207,28 @@ export class EvmTxService {
         //   serializedTransaction,
         // });
 
-        // const hash = await walletClient.sendTransaction(txData);
-
         const ethValue = parseEther(TransferPayload.amount);
         const value = parseInt(ethValue.toString());
-        console.log(walletClient.account.address);
-        const data = await this.privy.walletApi.ethereum.sendTransaction({
+
+        const data = await this.privy.walletApi.ethereum.signTransaction({
           address: walletClient.account.address.toLowerCase(),
           chainType: 'ethereum',
-          caip2: `eip155:${fromChain.id}`,
 
           transaction: {
             to: TransferPayload.toAddress.toLowerCase(),
             value,
             chainId: fromChain.id,
+            gasLimit: parseInt(BigInt(21000).toString()),
+            nonce: Number(nonce),
+            maxFeePerGas: parseInt(BigInt(50000000000).toString()),
+            maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
           },
+        });
+
+        const signedTx = data.signedTransaction;
+        console.log('signedTx: ', signedTx);
+        const hash = await walletClient.sendRawTransaction({
+          serializedTransaction: signedTx as `0x${string}`,
         });
 
         // console.log(walletClient.account);
@@ -230,7 +237,7 @@ export class EvmTxService {
         //   chainType: 'ethereum',
         //   message: 'Hello world',
         // });
-        console.log('hash: ', data);
+        console.log('hash: ', hash);
       } catch (error) {
         console.error('Error signing transaction:', error);
       }
