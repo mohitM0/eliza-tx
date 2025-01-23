@@ -11,15 +11,15 @@ import AuthTokenService from 'src/_common/service/authToken.service';
 import WalletClientService from 'src/_common/service/walletClient.service';
 import {
   createConfig,
-  // createConfig,
   executeRoute,
   ExtendedChain,
-  // ExtendedChain,
   getRoutes,
+  EVM
 } from '@lifi/sdk';
 import {
   Account,
   ByteArray,
+  Client,
   createPublicClient,
   Hex,
   http,
@@ -30,6 +30,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import * as dotenv from 'dotenv';
 import { log } from 'console';
+import { returnStepsExecution } from 'src/_common/helper/returnStepsExecution';
 
 dotenv.config();
 
@@ -266,6 +267,48 @@ export class EvmTxService {
       );
     const [fromAddress] = await walletClient.getAddresses();
 
+    const evmProvider = EVM({
+      getWalletClient: async () => walletClient as Client,
+    })
+
+    createConfig({
+      integrator: 'eliza',
+      chains: Object.values(this.walletClientService.chains).map((config) => ({
+        id: config.id,
+        name: config.name,
+        key: config.name.toLowerCase(),
+        chainType: 'EVM' as const,
+        nativeToken: {
+          ...config.nativeCurrency,
+          chainId: config.id,
+          address: '0x0000000000000000000000000000000000000000',
+          coinKey: config.nativeCurrency.symbol,
+          priceUSD: '0',
+          logoURI: '',
+          symbol: config.nativeCurrency.symbol,
+          decimals: config.nativeCurrency.decimals,
+          name: config.nativeCurrency.name,
+        },
+        rpcUrls: {
+          public: { http: [config.rpcUrls.default.http[0]] },
+        },
+        blockExplorerUrls: [config.blockExplorers.default.url],
+        metamask: {
+          chainId: `0x${config.id.toString(16)}`,
+          chainName: config.name,
+          nativeCurrency: config.nativeCurrency,
+          rpcUrls: [config.rpcUrls.default.http[0]],
+          blockExplorerUrls: [config.blockExplorers.default.url],
+        },
+        coin: config.nativeCurrency.symbol,
+        mainnet: true,
+        diamondAddress: '0x0000000000000000000000000000000000000000',
+      })) as ExtendedChain[],
+      providers: [evmProvider],
+    });
+
+    
+
     const routes = await getRoutes({
       fromChainId: this.walletClientService.chains[SwapPayload.chain].id,
       toChainId: this.walletClientService.chains[SwapPayload.chain].id,
@@ -283,7 +326,11 @@ export class EvmTxService {
 
     if (!routes.routes.length) throw new Error('No routes found');
 
-    const execution = await executeRoute(routes.routes[0], this.swapConfig);
+    const executionOptions = {
+      updateRouteHook: returnStepsExecution,
+    }
+
+    const execution = await executeRoute(routes.routes[0], executionOptions);
     const process = execution.steps[0]?.execution?.process[0];
 
     if (!process?.status || process.status === 'FAILED') {
@@ -310,6 +357,38 @@ export class EvmTxService {
     );
     const [fromAddress] = await walletClient.getAddresses();
 
+    const evmProvider = EVM({
+      getWalletClient: async () => walletClient as Client,
+    })
+
+    createConfig({
+      integrator: 'eliza',
+      chains: Object.values(this.walletClientService.chains).map((config) => ({
+        id: config.id,
+        name: config.name,
+        key: config.name.toLowerCase(),
+        chainType: 'EVM',
+        nativeToken: {
+          ...config.nativeCurrency,
+          chainId: config.id,
+          address: '0x0000000000000000000000000000000000000000',
+          coinKey: config.nativeCurrency.symbol,
+        },
+        metamask: {
+          chainId: `0x${config.id.toString(16)}`,
+          chainName: config.name,
+          nativeCurrency: config.nativeCurrency,
+          rpcUrls: [config.rpcUrls.default.http[0]],
+          blockExplorerUrls: [config.blockExplorers.default.url],
+        },
+        diamondAddress: '0x0000000000000000000000000000000000000000',
+        coin: config.nativeCurrency.symbol,
+        mainnet: true,
+      })) as ExtendedChain[],
+      providers: [evmProvider],
+    });
+
+
     const routes = await getRoutes({
       fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
       toChainId: this.walletClientService.chains[BridgePayload.toChain].id,
@@ -325,8 +404,12 @@ export class EvmTxService {
     });
 
     if (!routes.routes.length) throw new Error('No routes found');
+    
+    const executionOptions = {
+      updateRouteHook: returnStepsExecution,
+    }
 
-    const execution = await executeRoute(routes.routes[0], this.bridgeConfig);
+    const execution = await executeRoute(routes.routes[0], executionOptions);
     const process = execution.steps[0]?.execution?.process[0];
 
     if (!process?.status || process.status === 'FAILED') {
