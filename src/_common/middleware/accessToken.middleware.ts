@@ -7,7 +7,6 @@ export class AccessTokenMiddleware implements NestMiddleware {
     // Extract the Authorization header
     
     const authHeader = req.headers['authorization'];
-    console.log("authHeader", authHeader);
     if (!authHeader) {
       throw new HttpException('Authorization header is missing', HttpStatus.UNAUTHORIZED);
     }

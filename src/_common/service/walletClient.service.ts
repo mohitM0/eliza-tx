@@ -22,7 +22,7 @@ dotenv.config();
 export default class WalletClientService {
   private readonly privy: PrivyClient;
   chains: Record<string, Chain> = {
-    mainnet: viemChains.mainnet,
+    ethereum: viemChains.mainnet,
     sepolia: viemChains.sepolia,
     bsc: viemChains.bsc,
     bscTestnet: viemChains.bscTestnet,

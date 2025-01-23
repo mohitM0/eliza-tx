@@ -14,11 +14,10 @@ export class TransferDTO {
 }
 
 export class SwapPayload {
-  chain: SupportedChain;
-  fromToken: Address;
-  toToken: Address;
+  inputToken: string;
+  outputToken: string;
   amount: string;
-  slippage?: number;
+  chain: SupportedChain;
 }
 
 export class BridgePayload {
