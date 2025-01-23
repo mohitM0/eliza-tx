@@ -108,23 +108,19 @@ export class EvmTxService {
     });
   }
 
-  // async getTokenList(chainId: number){
-  //   try {
-  //     const tokens = await getTokens({
-  //       chains: [chainId] ,
-  //       chainTypes: [ChainType.EVM, ChainType.SVM],
-  //     })
-  //     console.log('tokens:', tokens);
+  async getTokenList(chainId: number){
+    try {
+      const tokens = await getTokens({
+        chains: [chainId] ,
+        chainTypes: [ChainType.EVM, ChainType.SVM],
+      })
+      console.log('tokens:', tokens.tokens[chainId]);
+      return tokens.tokens[chainId];
       
-  //     if (tokens?.[chainId]?.length > 0) {
-  //       console.log(tokens[chainId]);
-  //     } else {
-  //       console.log("No tokens found for the specified chainId.");
-  //     }
-  //   } catch (error) {
-  //     console.error(error);
-  //   }
-  // }
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   async getTokenAddress(tokenSymbol: string, chainId: number): Promise<string> {
     const token = await getToken(chainId, tokenSymbol);
@@ -210,7 +206,7 @@ export class EvmTxService {
     const [fromAddress] = await walletClient.getAddresses();
     const chainId = await this.walletClientService.chains[SwapPayload.chain].id;
 
-    // const supportedTokensList = await this.getTokenList(chainId);
+    await this.getTokenList(chainId);
 
     const inputTokenAddress = await this.getTokenAddress(
       SwapPayload.inputToken.toUpperCase(),
@@ -242,7 +238,7 @@ export class EvmTxService {
       toChainId: this.walletClientService.chains[SwapPayload.chain].id,
       fromTokenAddress: inputTokenAddress,
       toTokenAddress: outputTokenAddress,
-      fromAmount: SwapPayload.amount,
+      fromAmount: SwapPayload.amount as string,
       fromAddress: fromAddress,
       options: {
         slippage: 0.5,
