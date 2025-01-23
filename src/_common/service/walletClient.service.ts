@@ -125,7 +125,7 @@ export default class WalletClientService {
         account: account as Account, // `Account` instance from above
         chain: selectedChain, // Replace with your desired network
         transport: http(
-          'https://mainnet.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
+          'https://polygon-mainnet.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
         ),
       });
 
