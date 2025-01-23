@@ -141,77 +141,16 @@ export class EvmTxService {
 
     try {
       try {
-        // const hash = await this.privy.walletApi.ethereum.sendTransaction({
-        //   walletId: 'did:privy:cm5zg7mos0351lno23pz91sgv',
-        //   caip2: `eip155:${fromChain.id}`,
-        //   transaction: {
-        //     to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
-        //     value: parseEther(TransferPayload.amount),
-        //     chainId: fromChain.id,
-        //   },
-        // })
-        console.log('above');
-
-        // const txData = await walletClient.prepareTransactionRequest({
-        //   account: walletClient.account.address,
-        //   to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
-        //   value: parseEther(TransferPayload.amount),
-        //   data: TransferPayload.data as Hex,
-        //   chain: fromChain,
-        //   kzg: {
-        //     blobToKzgCommitment: function (_: ByteArray): ByteArray {
-        //       throw new Error('Function not implemented.');
-        //     },
-        //     computeBlobKzgProof: function (
-        //       _blob: ByteArray,
-        //       _commitment: ByteArray,
-        //     ): ByteArray {
-        //       throw new Error('Function not implemented.');
-        //     },
-        //   },
-        // });
-
-        // console.log('txData: ', txData);
-
-        console.log('local account: ', localAccount);
-
-        const acc = privateKeyToAccount(
-          '0x1523ae53ba92b720fcebe94671d7d3572bd380e0732226bf6e44efa3bb01cfa6',
-        );
-        console.log('acc: ', acc);
-
-        const publicClient = createPublicClient({
-          chain: fromChain, // Use the chain you're working with, e.g., Sepolia
-          transport: http(
-            'https://sepolia.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
-          ),
-        });
+        
+        const publicClient = await this.walletClientService.createPublicClient(fromChain);
         const nonce = await publicClient.getTransactionCount({
           address: localAccount.address,
         });
 
-        // const serializedTransaction = await localAccount.signMessage({message: "hello"});
-        // const serializedTransaction = await localAccount.signTransaction({
-        //   to: TransferPayload.toAddress.toLocaleLowerCase() as `0x${string}`,
-        //   value: parseEther(TransferPayload.amount),
-        //   data: TransferPayload.data as Hex,
-        //   chainId: fromChain.id,
-        //   nonce: Number(nonce),
-        //   gas: BigInt(21000),
-        //   maxFeePerGas: BigInt(50000000000),
-        //   maxPriorityFeePerGas: BigInt(2000000000),
-        // });
-        // console.log('serializedTransaction: ', serializedTransaction);
-
-        // const hash = await walletClient.sendRawTransaction({
-        //   serializedTransaction,
-        // });
-
-        // const hash = await walletClient.sendTransaction(txData);
-
         const ethValue = parseEther(TransferPayload.amount);
         const value = parseInt(ethValue.toString());
         console.log(walletClient.account.address);
+        
         const data = await this.privy.walletApi.ethereum.sendTransaction({
           address: walletClient.account.address.toLowerCase(),
           chainType: 'ethereum',
@@ -224,12 +163,6 @@ export class EvmTxService {
           },
         });
 
-        // console.log(walletClient.account);
-        // const data = await this.privy.walletApi.ethereum.signMessage({
-        //   address: walletClient.account.address.toLowerCase(),
-        //   chainType: 'ethereum',
-        //   message: 'Hello world',
-        // });
         console.log('hash: ', data);
       } catch (error) {
         console.error('Error signing transaction:', error);

@@ -6,9 +6,11 @@ import AuthTokenService from './authToken.service';
 import {
   Account,
   Chain,
+  createPublicClient,
   createWalletClient,
   http,
   LocalAccount,
+  PublicClient,
   WalletClient,
 } from 'viem';
 import * as viemChains from 'viem/chains';
@@ -42,7 +44,7 @@ export default class WalletClientService {
     this.privy = new PrivyClient(appId, appSecret, {
       walletApi: {
         authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
-      }
+      },
     });
   }
 
@@ -82,38 +84,23 @@ export default class WalletClientService {
     }
   }
 
+  async createPublicClient(chain: Chain): Promise<PublicClient> {
+    
+    const publicClient: any = createPublicClient({
+      chain: chain, 
+      transport: http(
+        process.env.INFURA_PROVIDER_SEPOLIA,
+      ),
+    });
+    return publicClient;
+  }
+
   async createWalletClient(
     authToken: string,
     chain: SupportedChain,
   ): Promise<WalletClient> {
     try {
-      const verifiedAuthToken =
-        await this.authTokenService.verifyAuthToken(authToken);
-      if (!verifiedAuthToken) {
-        throw new Error('User is not verified.');
-      }
-      // console.log('userId: ', verifiedAuthToken.userId);
-
-      const user: any = await this.privy.getUserById(verifiedAuthToken.userId);
-      const privyEthereumAccount = user.linkedAccounts.find(
-        (account) =>
-          account.walletClientType === 'privy' &&
-          account.connectorType === 'embedded' &&
-          account.chainType === 'ethereum',
-      );
-
-      const privyEthereumAddress = privyEthereumAccount.address;
-      if (privyEthereumAddress) {
-        console.log('Privy Ethereum Address:', privyEthereumAddress);
-      } else {
-        console.log('No linked account matches the criteria.');
-      }
-
-      const account = await createViemAccount({
-        walletId: user.id,
-        address: privyEthereumAddress,
-        privy: this.privy,
-      });
+      const account: Account = await this.createLocalAccount(authToken);
 
       const selectedChain = this.chains[chain];
 
@@ -122,11 +109,9 @@ export default class WalletClientService {
       }
 
       const client: WalletClient = createWalletClient({
-        account: account as Account, // `Account` instance from above
-        chain: selectedChain, // Replace with your desired network
-        transport: http(
-          'https://sepolia.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
-        ),
+        account: account as Account,
+        chain: selectedChain,
+        transport: http(process.env.INFURA_PROVIDER_SEPOLIA),
       });
 
       if (!client) {
