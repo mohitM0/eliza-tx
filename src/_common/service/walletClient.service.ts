@@ -20,7 +20,7 @@ dotenv.config();
 export default class WalletClientService {
   private readonly privy: PrivyClient;
   chains: Record<string, Chain> = {
-    mainnet: viemChains.mainnet,
+    ethereum: viemChains.mainnet,
     sepolia: viemChains.sepolia,
     bsc: viemChains.bsc,
     bscTestnet: viemChains.bscTestnet,
@@ -125,7 +125,7 @@ export default class WalletClientService {
         account: account as Account, // `Account` instance from above
         chain: selectedChain, // Replace with your desired network
         transport: http(
-          'https://sepolia.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
+          'https://mainnet.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
         ),
       });
 

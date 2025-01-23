@@ -14,13 +14,17 @@ import {
   executeRoute,
   ExtendedChain,
   getRoutes,
-  EVM
+  EVM,
+  getTokens,
+  ChainType,
+  getToken
 } from '@lifi/sdk';
 import {
   Account,
   ByteArray,
   Client,
   createPublicClient,
+  createWalletClient,
   Hex,
   http,
   LocalAccount,
@@ -31,6 +35,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import * as dotenv from 'dotenv';
 import { log } from 'console';
 import { returnStepsExecution } from 'src/_common/helper/returnStepsExecution';
+import { parse } from 'path';
 
 dotenv.config();
 
@@ -56,40 +61,40 @@ export class EvmTxService {
       },
     });
 
-    this.swapConfig = createConfig({
-      integrator: 'eliza',
-      chains: Object.values(walletClientService.chains).map((config) => ({
-        id: config.id,
-        name: config.name,
-        key: config.name.toLowerCase(),
-        chainType: 'EVM' as const,
-        nativeToken: {
-          ...config.nativeCurrency,
-          chainId: config.id,
-          address: '0x0000000000000000000000000000000000000000',
-          coinKey: config.nativeCurrency.symbol,
-          priceUSD: '0',
-          logoURI: '',
-          symbol: config.nativeCurrency.symbol,
-          decimals: config.nativeCurrency.decimals,
-          name: config.nativeCurrency.name,
-        },
-        rpcUrls: {
-          public: { http: [config.rpcUrls.default.http[0]] },
-        },
-        blockExplorerUrls: [config.blockExplorers.default.url],
-        metamask: {
-          chainId: `0x${config.id.toString(16)}`,
-          chainName: config.name,
-          nativeCurrency: config.nativeCurrency,
-          rpcUrls: [config.rpcUrls.default.http[0]],
-          blockExplorerUrls: [config.blockExplorers.default.url],
-        },
-        coin: config.nativeCurrency.symbol,
-        mainnet: true,
-        diamondAddress: '0x0000000000000000000000000000000000000000',
-      })) as ExtendedChain[],
-    });
+    // this.swapConfig = createConfig({
+    //   integrator: 'eliza',
+    //   chains: Object.values(walletClientService.chains).map((config) => ({
+    //     id: config.id,
+    //     name: config.name,
+    //     key: config.name.toLowerCase(),
+    //     chainType: 'EVM' as const,
+    //     nativeToken: {
+    //       ...config.nativeCurrency,
+    //       chainId: config.id,
+    //       address: '0x0000000000000000000000000000000000000000',
+    //       coinKey: config.nativeCurrency.symbol,
+    //       priceUSD: '0',
+    //       logoURI: '',
+    //       symbol: config.nativeCurrency.symbol,
+    //       decimals: config.nativeCurrency.decimals,
+    //       name: config.nativeCurrency.name,
+    //     },
+    //     rpcUrls: {
+    //       public: { http: [config.rpcUrls.default.http[0]] },
+    //     },
+    //     blockExplorerUrls: [config.blockExplorers.default.url],
+    //     metamask: {
+    //       chainId: `0x${config.id.toString(16)}`,
+    //       chainName: config.name,
+    //       nativeCurrency: config.nativeCurrency,
+    //       rpcUrls: [config.rpcUrls.default.http[0]],
+    //       blockExplorerUrls: [config.blockExplorers.default.url],
+    //     },
+    //     coin: config.nativeCurrency.symbol,
+    //     mainnet: true,
+    //     diamondAddress: '0x0000000000000000000000000000000000000000',
+    //   })) as ExtendedChain[],
+    // });
 
     this.bridgeConfig = createConfig({
       integrator: 'eliza',
@@ -117,6 +122,27 @@ export class EvmTxService {
       })) as ExtendedChain[],
     });
   }
+
+  async getTokenList(chainId: number) {
+    try {
+      const tokens = await getTokens({
+        chains: [chainId],
+        chainTypes: [ChainType.EVM, ChainType.SVM],
+      })
+      console.log('tokens:', tokens.tokens[chainId]);
+      return tokens.tokens[chainId];
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async getTokenAddress(tokenSymbol: string, chainId: number): Promise<string> {
+    const token = await getToken(chainId, tokenSymbol);
+    const tokenAddress = token?.address;
+    return tokenAddress;
+  }
+
 
   async transfer(
     TransferPayload: TransferDTO,
@@ -260,91 +286,145 @@ export class EvmTxService {
     SwapPayload: SwapPayload,
     authToken: string,
   ): Promise<Transaction> {
-    const walletClient: WalletClient =
-      await this.walletClientService.createWalletClient(
-        authToken,
-        SwapPayload.chain,
+    try {
+      const walletClient: WalletClient =
+        await this.walletClientService.createWalletClient(
+          authToken,
+          SwapPayload.chain,
+        );
+      const [fromAddress] = await walletClient.getAddresses();
+
+      const chainId = await this.walletClientService.chains[SwapPayload.chain].id;
+
+      await this.getTokenList(chainId);
+
+      const inputTokenAddress = await this.getTokenAddress(
+        SwapPayload.inputToken.toUpperCase(),
+        chainId,
       );
-    const [fromAddress] = await walletClient.getAddresses();
+      const outputTokenAddress = await this.getTokenAddress(
+        SwapPayload.outputToken.toUpperCase(),
+        chainId,
+      );
 
-    const evmProvider = EVM({
-      getWalletClient: async () => walletClient as Client,
-    })
 
-    createConfig({
-      integrator: 'eliza',
-      chains: Object.values(this.walletClientService.chains).map((config) => ({
-        id: config.id,
-        name: config.name,
-        key: config.name.toLowerCase(),
-        chainType: 'EVM' as const,
-        nativeToken: {
-          ...config.nativeCurrency,
-          chainId: config.id,
-          address: '0x0000000000000000000000000000000000000000',
-          coinKey: config.nativeCurrency.symbol,
-          priceUSD: '0',
-          logoURI: '',
-          symbol: config.nativeCurrency.symbol,
-          decimals: config.nativeCurrency.decimals,
-          name: config.nativeCurrency.name,
-        },
-        rpcUrls: {
-          public: { http: [config.rpcUrls.default.http[0]] },
-        },
-        blockExplorerUrls: [config.blockExplorers.default.url],
-        metamask: {
-          chainId: `0x${config.id.toString(16)}`,
-          chainName: config.name,
-          nativeCurrency: config.nativeCurrency,
-          rpcUrls: [config.rpcUrls.default.http[0]],
+      console.log('Parameters passed to getRoutes:');
+      console.log(
+        'fromChainId:',
+        this.walletClientService.chains[SwapPayload.chain].id,
+      );
+      console.log(
+        'toChainId:',
+        this.walletClientService.chains[SwapPayload.chain].id,
+      );
+      console.log('fromTokenAddress:', inputTokenAddress);
+      console.log('toTokenAddress:', outputTokenAddress);
+      console.log('fromAmount:', SwapPayload.amount);
+      console.log('fromAddress:', fromAddress);
+
+
+      const evmProvider = EVM({
+        getWalletClient: async () => walletClient as Client,
+        switchChain: async () => walletClient as Client,
+      })
+
+      createConfig({
+        integrator: 'eliza',
+        chains: Object.values(this.walletClientService.chains).map((config) => ({
+          id: config.id,
+          name: config.name,
+          key: config.name.toLowerCase(),
+          chainType: 'EVM' as const,
+          nativeToken: {
+            ...config.nativeCurrency,
+            chainId: config.id,
+            address: '0x0000000000000000000000000000000000000000',
+            coinKey: config.nativeCurrency.symbol,
+            priceUSD: '0',
+            logoURI: '',
+            symbol: config.nativeCurrency.symbol,
+            decimals: config.nativeCurrency.decimals,
+            name: config.nativeCurrency.name,
+          },
+          rpcUrls: {
+            public: { http: [config.rpcUrls.default.http[0]] },
+          },
           blockExplorerUrls: [config.blockExplorers.default.url],
+          metamask: {
+            chainId: `0x${config.id.toString(16)}`,
+            chainName: config.name,
+            nativeCurrency: config.nativeCurrency,
+            rpcUrls: [config.rpcUrls.default.http[0]],
+            blockExplorerUrls: [config.blockExplorers.default.url],
+          },
+          coin: config.nativeCurrency.symbol,
+          mainnet: true,
+          diamondAddress: '0x0000000000000000000000000000000000000000',
+        })) as ExtendedChain[],
+        providers: [evmProvider],
+      });
+
+      const fromAmount = parseEther(SwapPayload.amount);
+      const fromAmountString = fromAmount.toString();
+      console.log({
+        fromChainId: this.walletClientService.chains[SwapPayload.chain].id,
+        toChainId: this.walletClientService.chains[SwapPayload.chain].id,
+        fromTokenAddress: inputTokenAddress,
+        toTokenAddress: outputTokenAddress,
+        fromAmount: fromAmountString as string,
+        fromAddress: fromAddress,
+        options: {
+          slippage: 0.5,
+          order: 'RECOMMENDED',
+          fee: 0.02,
+          integrator: 'elizaM0',
         },
-        coin: config.nativeCurrency.symbol,
-        mainnet: true,
-        diamondAddress: '0x0000000000000000000000000000000000000000',
-      })) as ExtendedChain[],
-      providers: [evmProvider],
-    });
+      })
 
-    
 
-    const routes = await getRoutes({
-      fromChainId: this.walletClientService.chains[SwapPayload.chain].id,
-      toChainId: this.walletClientService.chains[SwapPayload.chain].id,
-      fromTokenAddress: SwapPayload.fromToken,
-      toTokenAddress: SwapPayload.toToken,
-      fromAmount: SwapPayload.amount,
-      fromAddress: fromAddress,
-      options: {
-        slippage: SwapPayload.slippage || 0.5,
-        order: 'RECOMMENDED',
-        fee: 0.02,
-        integrator: 'elizaM0',
-      },
-    });
 
-    if (!routes.routes.length) throw new Error('No routes found');
+      const routes = await getRoutes({
+        fromChainId: this.walletClientService.chains[SwapPayload.chain].id,
+        toChainId: this.walletClientService.chains[SwapPayload.chain].id,
+        fromTokenAddress: inputTokenAddress,
+        toTokenAddress: outputTokenAddress,
+        fromAmount: fromAmountString as string,
+        fromAddress: fromAddress,
+        // options: {
+        //   slippage: 0.5,
+        //   order: 'FASTEST',
+        //   fee: 0.02,
+        //   integrator: 'elizaM0',
+        // },
+      });
 
-    const executionOptions = {
-      updateRouteHook: returnStepsExecution,
+      if (!routes.routes.length) throw new Error('No routes found');
+      // console.log('routes:', routes);
+      console.log('routes.routes[0]:', routes.routes[0]);
+      const executionOptions = {
+        updateRouteHook: returnStepsExecution,
+      }
+
+      const execution = await executeRoute(routes.routes[0], executionOptions);
+      // const execution = await executeRoute(routes.routes[0], this.swapConfig);
+      const process = execution.steps[0]?.execution?.process[0];
+
+      if (!process?.status || process.status === 'FAILED') {
+        throw new Error('Transaction failed');
+      }
+
+      return {
+        hash: process.txHash as `0x${string}`,
+        from: fromAddress,
+        to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
+        value: BigInt(SwapPayload.amount),
+        data: process.data as `0x${string}`,
+        chainId: this.walletClientService.chains[SwapPayload.chain].id,
+      };
+    } catch (error) {
+      console.error('Error during swap:', error);
+      throw new Error(`Swap failed: ${error.message}`);
     }
-
-    const execution = await executeRoute(routes.routes[0], executionOptions);
-    const process = execution.steps[0]?.execution?.process[0];
-
-    if (!process?.status || process.status === 'FAILED') {
-      throw new Error('Transaction failed');
-    }
-
-    return {
-      hash: process.txHash as `0x${string}`,
-      from: fromAddress,
-      to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
-      value: BigInt(SwapPayload.amount),
-      data: process.data as `0x${string}`,
-      chainId: this.walletClientService.chains[SwapPayload.chain].id,
-    };
   }
 
   async bridge(
@@ -404,7 +484,7 @@ export class EvmTxService {
     });
 
     if (!routes.routes.length) throw new Error('No routes found');
-    
+
     const executionOptions = {
       updateRouteHook: returnStepsExecution,
     }
