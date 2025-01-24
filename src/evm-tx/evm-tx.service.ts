@@ -36,6 +36,7 @@ import {
   http,
   LocalAccount,
   parseEther,
+  parseUnits,
   WalletClient,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -43,6 +44,7 @@ import * as dotenv from 'dotenv';
 import { log } from 'console';
 import { returnStepsExecution } from 'src/_common/helper/returnStepsExecution';
 import { parse } from 'path';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -110,8 +112,15 @@ export class EvmTxService {
 
   async getTokenAddress(tokenSymbol: string, chainId: number): Promise<string> {
     const token = await getToken(chainId, tokenSymbol);
+    const tokenDec = token.decimals;
     const tokenAddress = token?.address;
     return tokenAddress;
+  }
+
+  async getTokenDec(tokenSymbol: string, chainId: number): Promise<number> {
+    const token = await getToken(chainId, tokenSymbol);
+    const tokenDec = token.decimals;
+    return tokenDec;
   }
 
   async transfer(
@@ -372,25 +381,22 @@ export class EvmTxService {
 
           console.log('step with transaction data: ', step);
 
-          
-          
           // Send the transaction (e.g. using Viem)
           const transactionRequestWithParams = {
             address: walletClient.account.address.toLowerCase(),
             chainType: 'ethereum',
             caip2: `eip155:${chainId}`,
-            transaction: step.transactionRequest
+            transaction: step.transactionRequest,
           };
           const transactionHash: EthereumSendTransactionResponseType =
             await this.privy.walletApi.ethereum.sendTransaction(
               transactionRequestWithParams,
             );
 
-          console.log({transactionHash})
+          console.log({ transactionHash });
 
-            //@ts-ignore
+          //@ts-ignore
           // console.log('transaction hash:', transactionHash.hash);
-
 
           // Monitor the status of the transaction
           let status;
@@ -455,7 +461,8 @@ export class EvmTxService {
     );
     const [fromAddress] = await walletClient.getAddresses();
 
-    const chainId = await this.walletClientService.chains[BridgePayload.fromChain].id;
+    const chainId =
+      await this.walletClientService.chains[BridgePayload.fromChain].id;
 
     const evmProvider = EVM({
       getWalletClient: async () => walletClient as Client,
@@ -488,18 +495,27 @@ export class EvmTxService {
       providers: [evmProvider],
     });
 
+    console.log('Bridge amount:', BridgePayload.amount);
+
+    // const fromAmount = parseUnits(BridgePayload.amount, 18);
+
+    const fromAmount = parseEther(BridgePayload.amount);
+
+    const fromAmountString = fromAmount.toString();
+    console.log('to token address:', BridgePayload.toToken);
+
     const routes = await getRoutes({
       fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
       toChainId: this.walletClientService.chains[BridgePayload.toChain].id,
       fromTokenAddress: BridgePayload.fromToken,
       toTokenAddress: BridgePayload.toToken,
-      fromAmount: BridgePayload.amount,
+      fromAmount: fromAmountString,
       fromAddress: fromAddress,
       toAddress: BridgePayload.toAddress || fromAddress,
-      options: {
-        fee: 0.02,
-        integrator: 'elizaM0',
-      },
+      // options: {
+      //   fee: 0.02,
+      //   integrator: 'elizaM0',
+      // },
     });
 
     if (!routes.routes.length) throw new Error('No routes found');
@@ -507,58 +523,115 @@ export class EvmTxService {
     const executionOptions = {
       updateRouteHook: returnStepsExecution,
     };
+    let i = 1;
+    for (const txStep of routes.routes[0].steps) {
+      console.log(`step ${i}: `, txStep);
+      i++;
+    }
 
     try {
       for (const txStep of routes.routes[0].steps) {
         // Request transaction data for the current step
-        console.log('txStep: ', txStep);
 
         const step = await getStepTransaction(txStep);
-
         console.log('step with transaction data: ', step);
 
+        const chainId = step.transactionRequest.chainId;
+        console.log('chainId: ', chainId);
         
-        
+
         // Send the transaction (e.g. using Viem)
         const transactionRequestWithParams = {
           address: walletClient.account.address.toLowerCase(),
           chainType: 'ethereum',
           caip2: `eip155:${chainId}`,
-          transaction: step.transactionRequest
+          transaction: step.transactionRequest,
         };
         const transactionHash: EthereumSendTransactionResponseType =
           await this.privy.walletApi.ethereum.sendTransaction(
             transactionRequestWithParams,
           );
 
-        console.log({transactionHash})
+        console.log({ transactionHash });
 
-          //@ts-ignore
+        //@ts-ignore
         // console.log('transaction hash:', transactionHash.hash);
 
-
         // Monitor the status of the transaction
-        let status;
-        do {
-          const result = await getStatus({
-            //@ts-ignore
-            txHash: transactionHash.hash,
-            fromChain: step.action.fromChainId,
-            toChain: step.action.toChainId,
-            bridge: step.tool,
+        const txHash = transactionHash.hash;
+        const fromChainId = s
+        const url = `https://li.quest/v1/status?txHash=${txHash}&fromChain=${}&toChain=${}&bridge=stargateV2Bus`;
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
           });
-          status = result.status;
+      
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+      
+          const data = await response.json();
+          const status  = data.status;
+          console.log("statusdata: ", status);
+          
 
-          console.log(`Transaction status for ${transactionHash}:`, status);
-
-          // Wait for a short period before checking the status again
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-        } while (status !== 'DONE' && status !== 'FAILED');
-
-        if (status === 'FAILED') {
-          console.error(`Transaction ${transactionHash} failed`);
-          return;
+          if (status === 'FAILED') {
+            console.error(`Transaction ${transactionHash} failed`);
+            return;
+          }
+          return data;
+        } catch (error) {
+          console.error('Error fetching data:', error);
         }
+
+
+
+      //   let status;
+      //   const txClient = axios.create({
+      //     baseURL: 'https://li.quest/v1',
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //     },
+      //   });
+      //   // @ts-ignore
+        
+    
+      //  try {
+      //   const response = await txClient.get(`/status?txHash${txHash}=&fromChain=137&toChain=56&bridge=stargateV2Bus`);
+
+      //   console.log("response from status ",response.data);
+      //   const status = response.status;
+      //  } catch (error) {
+      //   console.error("Error in status: ", error);
+      //  }
+      // let status;
+      //   do {
+      //     try {
+      //       const result = await getStatus({
+      //         //@ts-ignore
+      //         txHash: transactionHash.hash,
+      //         fromChain: step.action.fromChainId,
+      //         toChain: step.action.toChainId,
+      //         bridge: step.tool,
+      //       });
+      //       status = result.status;
+
+      //       console.log(`Transaction status for ${transactionHash}:`, status);
+
+      //       // Wait for a short period before checking the status again
+      //       await new Promise((resolve) => setTimeout(resolve, 5000));
+      //     } catch (error) {
+      //       console.error('Error in status:', error);
+      //     }
+      //   } while (status !== 'DONE' && status !== 'FAILED');
+
+        // if (status === 'FAILED') {
+        //   console.error(`Transaction ${transactionHash} failed`);
+        //   return;
+        // }
       }
 
       console.log('All steps executed successfully');
