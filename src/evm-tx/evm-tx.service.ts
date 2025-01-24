@@ -74,32 +74,6 @@ export class EvmTxService {
         authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
       },
     });
-
-    // this.bridgeConfig = createConfig({
-    //   integrator: 'eliza',
-    //   chains: Object.values(walletClientService.chains).map((config) => ({
-    //     id: config.id,
-    //     name: config.name,
-    //     key: config.name.toLowerCase(),
-    //     chainType: 'EVM',
-    //     nativeToken: {
-    //       ...config.nativeCurrency,
-    //       chainId: config.id,
-    //       address: '0x0000000000000000000000000000000000000000',
-    //       coinKey: config.nativeCurrency.symbol,
-    //     },
-    //     metamask: {
-    //       chainId: `0x${config.id.toString(16)}`,
-    //       chainName: config.name,
-    //       nativeCurrency: config.nativeCurrency,
-    //       rpcUrls: [config.rpcUrls.default.http[0]],
-    //       blockExplorerUrls: [config.blockExplorers.default.url],
-    //     },
-    //     diamondAddress: '0x0000000000000000000000000000000000000000',
-    //     coin: config.nativeCurrency.symbol,
-    //     mainnet: true,
-    //   })) as ExtendedChain[],
-    // });
   }
 
   async getTokenList(chainId: number) {
@@ -466,183 +440,168 @@ export class EvmTxService {
     );
     const [fromAddress] = await walletClient.getAddresses();
 
-    const chainId =
-      await this.walletClientService.chains[BridgePayload.fromChain].id;
-
     // const evmProvider = EVM({
     //   getWalletClient: async () => walletClient as Client,
     // });
 
-    // createConfig({
-    //   integrator: 'eliza',
-    //   chains: Object.values(this.walletClientService.chains).map((config) => ({
-    //     id: config.id,
-    //     name: config.name,
-    //     key: config.name.toLowerCase(),
-    //     chainType: 'EVM',
-    //     nativeToken: {
-    //       ...config.nativeCurrency,
-    //       chainId: config.id,
-    //       address: '0x0000000000000000000000000000000000000000',
-    //       coinKey: config.nativeCurrency.symbol,
-    //     },
-    //     metamask: {
-    //       chainId: `0x${config.id.toString(16)}`,
-    //       chainName: config.name,
-    //       nativeCurrency: config.nativeCurrency,
-    //       rpcUrls: [config.rpcUrls.default.http[0]],
-    //       blockExplorerUrls: [config.blockExplorers.default.url],
-    //     },
-    //     diamondAddress: '0x0000000000000000000000000000000000000000',
-    //     coin: config.nativeCurrency.symbol,
-    //     mainnet: true,
-    //   })) as ExtendedChain[],
-    //   providers: [evmProvider],
-    // });
+    createConfig({
+      integrator: 'eliza',
+      chains: Object.values(this.walletClientService.chains).map((config) => ({
+        id: config.id,
+        name: config.name,
+        key: config.name.toLowerCase(),
+        chainType: 'EVM',
+        nativeToken: {
+          ...config.nativeCurrency,
+          chainId: config.id,
+          address: '0x0000000000000000000000000000000000000000',
+          coinKey: config.nativeCurrency.symbol,
+        },
+        metamask: {
+          chainId: `0x${config.id.toString(16)}`,
+          chainName: config.name,
+          nativeCurrency: config.nativeCurrency,
+          rpcUrls: [config.rpcUrls.default.http[0]],
+          blockExplorerUrls: [config.blockExplorers.default.url],
+        },
+        diamondAddress: '0x0000000000000000000000000000000000000000',
+        coin: config.nativeCurrency.symbol,
+        mainnet: true,
+      })) as ExtendedChain[],
+      // providers: [evmProvider],
+    });
+    console.log('below create config');
 
     const fromAmount = parseEther(BridgePayload.amount);
-
     const fromAmountString = fromAmount.toString();
-    // console.log('to token address:', BridgePayload.toToken);
 
     const routes = await getRoutes({
-      fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
-      toChainId: this.walletClientService.chains[BridgePayload.toChain].id,
       fromTokenAddress: BridgePayload.fromToken,
       toTokenAddress: BridgePayload.toToken,
+      fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+      toChainId: this.walletClientService.chains[BridgePayload.toChain].id,
       fromAmount: fromAmountString,
       fromAddress: fromAddress,
       toAddress: BridgePayload.toAddress || fromAddress,
+      // fromAmountForGas: fromAmountString,
       // options: {
       //   fee: 0.02,
       //   integrator: 'elizaM0',
       // },
     });
+    console.log('routes:', routes);
 
     if (!routes.routes.length) throw new Error('No routes found');
 
     // const executionOptions = {
     //   updateRouteHook: returnStepsExecution,
     // };
-    // const fromChain =  this.walletClientService.chains[BridgePayload.fromChain];
-    // const route = routes.routes[0].steps[0];
-    // const approvalABI = [
-    //   {
-    //     type: 'function',
-    //     name: 'approve',
-    //     inputs: [
-    //       { name: 'spender', type: 'address' },
-    //       { name: 'amount', type: 'uint256' },
-    //     ],
-    //     outputs: [{ name: '', type: 'bool' }],
-    //     stateMutability: 'nonpayable',
-    //   },
-    // ];
-
-    // const approvalAmount = route.estimate.fromAmount;
-    // const approvalAddress = route.estimate.approvalAddress;
-
-    // const data = encodeFunctionData({
-    //   abi: approvalABI,
-    //   // functionName: 'approve',
-    //   args: [approvalAddress, approvalAmount],
-    // });
-
-    // const tokenAddress = await this.getTokenAddress(
-    //   BridgePayload.fromToken,
-    //   chainId,
-    // );
-
-    // const publicClient = createPublicClient({
-    //   chain: fromChain, // Use the chain you're working with, e.g., Sepolia
-    //   transport: http(
-    //     'https://polygon-mainnet.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
-    //   ),
-    // });
-    // const nonce = await publicClient.getTransactionCount({
-    //   address: walletClient.account.address,
-    // });
-
-    // const transactionParam = {
-    //   to: tokenAddress,
-    //   chainId: chainId,
-    //   data: data,
-    //   // gasLimit: parseInt(BigInt(21700).toString()),
-    //   // nonce: Number(nonce),
-    //   // maxFeePerGas: parseInt(BigInt(50000000000).toString()),
-    //   // maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
-    // };
-
-    // const signedTx = await this.privy.walletApi.ethereum.signTransaction({
-    //   address: walletClient.account.address.toLowerCase(),
-    //   chainType: 'ethereum',
-    //   transaction: transactionParam,
-    // });
-
-    // const respHash = await walletClient.sendRawTransaction({
-    //   serializedTransaction: signedTx.signedTransaction as `0x${string}`,
-    // });
-    // const c = await this.privy.walletApi.ethereum.sendTransaction({
-    //   address: walletClient.account.address.toLowerCase(),
-    //   chainType: 'ethereum',
-    //   caip2: `eip155:${chainId}`,
-    //   transaction: transactionParam,
-    // });
-
-    // @ts-ignore
-    // console.log('approval hash:', c.hash);
+    const approvalABI = [
+      {
+        type: 'function',
+        name: 'approve',
+        inputs: [
+          { name: 'spender', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+        ],
+        outputs: [{ name: '', type: 'bool' }],
+        stateMutability: 'nonpayable',
+      },
+    ];
 
     let i = 1;
     try {
       for (const txStep of routes.routes[0].steps) {
         const step = await getStepTransaction(txStep);
         console.log(`step with transaction data - step ${i}:`, step);
-
-        const chainIdIN = step.transactionRequest.chainId;
-
         i++;
-        const token = {
-          address: BridgePayload.fromToken,
-          chainId: chainIdIN,
+
+        const chainId = step.transactionRequest.chainId;
+
+        const approvalAmount = step.estimate.fromAmount;
+        const approvalAddress = step.estimate.approvalAddress;
+    
+        const data = encodeFunctionData({
+          abi: approvalABI,
+          // functionName: 'approve',
+          args: [approvalAddress, approvalAmount],
+        });
+
+        const tokenAddress = await this.getTokenAddress(
+          BridgePayload.fromToken,
+          chainId,
+        );
+    
+        // const publicClient = createPublicClient({
+        //   chain: fromChain,
+        //   transport: http(
+        //     'https://polygon-mainnet.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
+        //   ),
+        // });
+    
+        // const nonce = await publicClient.getTransactionCount({
+        //   address: walletClient.account.address,
+        // });
+
+        const transactionParam = {
+          to: tokenAddress,
+          chainId: chainId,
+          data: data,
+          // gasLimit: parseInt(BigInt(21700).toString()),
+          // nonce: Number(nonce),
+          // maxFeePerGas: parseInt(BigInt(50000000000).toString()),
+          // maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
         };
-        // const transactionParam = {
-        //   to: step.transactionRequest.to,
-        //   chainId: chainIdIN,
-        //   data: data,
-        //   // gasLimit: parseInt(BigInt(21700).toString()),
-        //   // nonce: Number(nonce),
-        //   // maxFeePerGas: parseInt(BigInt(50000000000).toString()),
-        //   // maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
-        // };
-        // const c = await this.privy.walletApi.ethereum.sendTransaction({
+
+        // const approved = await this.privy.walletApi.ethereum.sendTransaction({
         //   address: walletClient.account.address.toLowerCase(),
         //   chainType: 'ethereum',
-        //   caip2: `eip155:${chainIdIN}`,
+        //   caip2: `eip155:${chainId}`,
         //   transaction: transactionParam,
         // });
-        // console.log('approval hash:', c);
+
+        // // @ts-ignore
+        // console.log('approval hash:', approved.hash);
+
+        const token = {
+          address: tokenAddress,
+          chainId: chainId,
+        };
+
         const allowance = await getTokenAllowance(
           token,
           walletClient.account.address,
           step.estimate.approvalAddress,
         );
         console.log('Allowance:', formatEther(allowance));
-        // Send the transaction (e.g. using Viem)
-        const transactionRequestWithParams = {
-          address: walletClient.account.address.toLowerCase(),
-          chainType: 'ethereum',
-          caip2: `eip155:${chainIdIN}`,
-          transaction: step.transactionRequest,
-        };
-        const transactionHash: EthereumSendTransactionResponseType =
-          await this.privy.walletApi.ethereum.sendTransaction(
-            transactionRequestWithParams,
-          );
 
-        console.log({ transactionHash });
+        // add a check here to see if allowance is given or not. In current implementation,
+        //  the allowance shown below in console is the previous transaction allowance.
+
+        // try {
+        //   const transactionRequestWithParams = {
+        //     address: walletClient.account.address.toLowerCase(),
+        //     chainType: 'ethereum',
+        //     caip2: `eip155:${chainId}`,
+        //     transaction: step.transactionRequest,
+        //   };
+        //   const transactionHash: EthereumSendTransactionResponseType =
+        //     await this.privy.walletApi.ethereum.sendTransaction(
+        //       transactionRequestWithParams,
+        //     );
+  
+        //   console.log(transactionHash);
+        // } catch (error) {
+        //   throw new Error(error);
+        // }
+        const transactionHash = {
+          hash: '0x01fbc0243d5c14be6e50c2bdd8942bfc6ba429406e8765ca4361a06597845602'
+        }
 
         let status;
         do {
+          console.log('above status');
+
           const result = await getStatus({
             //@ts-ignore
             txHash: transactionHash.hash,
@@ -650,16 +609,20 @@ export class EvmTxService {
             toChain: step.action.toChainId,
             bridge: step.tool,
           });
+          console.log('below status');
+
           status = result.status;
 
-          console.log(`Transaction status for ${transactionHash}:`, status);
+          //@ts-ignore
+          console.log(`Transaction status for ${transactionHash.hash}:`, status);
 
           // Wait for a short period before checking the status again
-          await new Promise((resolve) => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, 30000));
         } while (status !== 'DONE' && status !== 'FAILED');
 
         if (status === 'FAILED') {
-          console.error(`Transaction ${transactionHash} failed`);
+          //@ts-ignore
+          console.error(`Transaction ${transactionHash.hash} failed`);
           return;
         }
       }
@@ -669,7 +632,7 @@ export class EvmTxService {
       throw new Error(`Error executing route: ${error.message}`);
     }
 
-    console.log("Below for loop");
+    console.log('Below for loop');
 
     return {
       //@ts-ignore
@@ -681,3 +644,9 @@ export class EvmTxService {
     };
   }
 }
+
+
+// 1) check the first route output -- it contains switch chain = true. check it what can we do here?
+// 2) check the status code. we have to wait for first transaction to get confirm. It is almost half an 
+// half an hour sometime. check should be add a webhook or something to get the status of the transaction.
+// 3) test this code with real transaction but before that fix issue number 2.

@@ -132,7 +132,8 @@ export default class WalletClientService {
       if (!client) {
         throw new Error('Wallet Client not initialized');
       }
-
+      console.log("walletclient created");
+      
       return client;
     } catch (error) {
       console.error(
