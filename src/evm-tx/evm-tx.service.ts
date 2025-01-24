@@ -267,7 +267,7 @@ export class EvmTxService {
       const chainId =
         await this.walletClientService.chains[SwapPayload.chain].id;
 
-      await this.getTokenList(chainId);
+      // await this.getTokenList(chainId);
 
       const inputTokenAddress = await this.getTokenAddress(
         SwapPayload.inputToken.toUpperCase(),
@@ -343,7 +343,7 @@ export class EvmTxService {
       // console.log('routes:', routes);
       // console.log('routes.routes[0]:', routes.routes[0]);
       // console.log('steps: ', routes.routes[0].steps);
-      console.log('steps: ', routes.routes[0].steps[0].includedSteps);
+      // console.log('steps: ', routes.routes[0].steps[0].includedSteps);
 
       const executionOptions = {
         updateRouteHook: returnStepsExecution,
@@ -386,8 +386,10 @@ export class EvmTxService {
               transactionRequestWithParams,
             );
 
+          console.log({transactionHash})
+
             //@ts-ignore
-          console.log('transaction hash:', transactionHash.hash);
+          // console.log('transaction hash:', transactionHash.hash);
 
 
           // Monitor the status of the transaction
@@ -395,7 +397,7 @@ export class EvmTxService {
           do {
             const result = await getStatus({
               //@ts-ignore
-              txHash: transactionHash,
+              txHash: transactionHash.hash,
               fromChain: step.action.fromChainId,
               toChain: step.action.toChainId,
               bridge: step.tool,
@@ -453,6 +455,8 @@ export class EvmTxService {
     );
     const [fromAddress] = await walletClient.getAddresses();
 
+    const chainId = await this.walletClientService.chains[BridgePayload.fromChain].id;
+
     const evmProvider = EVM({
       getWalletClient: async () => walletClient as Client,
     });
@@ -504,14 +508,73 @@ export class EvmTxService {
       updateRouteHook: returnStepsExecution,
     };
 
-    const execution = await executeRoute(routes.routes[0], executionOptions);
-    const process = execution.steps[0]?.execution?.process[0];
+    try {
+      for (const txStep of routes.routes[0].steps) {
+        // Request transaction data for the current step
+        console.log('txStep: ', txStep);
 
-    if (!process?.status || process.status === 'FAILED') {
-      throw new Error('Transaction failed');
+        const step = await getStepTransaction(txStep);
+
+        console.log('step with transaction data: ', step);
+
+        
+        
+        // Send the transaction (e.g. using Viem)
+        const transactionRequestWithParams = {
+          address: walletClient.account.address.toLowerCase(),
+          chainType: 'ethereum',
+          caip2: `eip155:${chainId}`,
+          transaction: step.transactionRequest
+        };
+        const transactionHash: EthereumSendTransactionResponseType =
+          await this.privy.walletApi.ethereum.sendTransaction(
+            transactionRequestWithParams,
+          );
+
+        console.log({transactionHash})
+
+          //@ts-ignore
+        // console.log('transaction hash:', transactionHash.hash);
+
+
+        // Monitor the status of the transaction
+        let status;
+        do {
+          const result = await getStatus({
+            //@ts-ignore
+            txHash: transactionHash.hash,
+            fromChain: step.action.fromChainId,
+            toChain: step.action.toChainId,
+            bridge: step.tool,
+          });
+          status = result.status;
+
+          console.log(`Transaction status for ${transactionHash}:`, status);
+
+          // Wait for a short period before checking the status again
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        } while (status !== 'DONE' && status !== 'FAILED');
+
+        if (status === 'FAILED') {
+          console.error(`Transaction ${transactionHash} failed`);
+          return;
+        }
+      }
+
+      console.log('All steps executed successfully');
+    } catch (error) {
+      throw new Error(`Error executing route: ${error.message}`);
     }
 
+    // const execution = await executeRoute(routes.routes[0], executionOptions);
+    // const process = execution.steps[0]?.execution?.process[0];
+
+    // if (!process?.status || process.status === 'FAILED') {
+    //   throw new Error('Transaction failed');
+    // }
+
     return {
+      //@ts-ignore
       hash: process.txHash as `0x${string}`,
       from: fromAddress,
       to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
