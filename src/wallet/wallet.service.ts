@@ -13,6 +13,7 @@ import { sepolia } from 'viem/chains';
 const { v4: uuidv4 } = require('uuid');
 import * as dotenv from 'dotenv';
 
+
 dotenv.config();
 
 @Injectable()
@@ -81,7 +82,10 @@ export class WalletService {
     //   throw new Error('User is not verified.');
     // }
     
-    const walletClient = await this.walletClientService.createWalletClient(authToken, 'sepolia');
+    const walletClient = await this.walletClientService.createWalletClient({
+      authToken, 
+      chainId: sepolia.id
+    });
 
     return walletClient;
   }

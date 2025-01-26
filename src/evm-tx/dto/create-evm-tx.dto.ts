@@ -10,7 +10,7 @@ export class TransferDTO {
   fromChain: SupportedChain;
   toAddress: Address;
   amount: string;
-  data?: `0x${string}`;
+  token: string;
 }
 
 // export class SwapPayload {
@@ -44,5 +44,11 @@ export interface Transaction {
   to: Address;
   value: bigint;
   data?: `0x${string}`;
+  chainId?: number;
+}
+
+export interface walletClientInputType {
+  authToken: string;
+  chain?: SupportedChain;
   chainId?: number;
 }

@@ -6,13 +6,16 @@ import AuthTokenService from './authToken.service';
 import {
   Account,
   Chain,
+  createPublicClient,
   createWalletClient,
   http,
   LocalAccount,
+  PublicClient,
   WalletClient,
 } from 'viem';
 import * as viemChains from 'viem/chains';
 import { SupportedChain } from 'src/evm-tx/dto/create-evm-tx.dto';
+import { bsc, mainnet, polygon } from 'viem/chains';
 
 dotenv.config();
 
@@ -29,6 +32,21 @@ export default class WalletClientService {
     polygon: viemChains.polygon,
     arbitrum: viemChains.arbitrum,
   };
+
+  private chainFromChainId: Record<number, Chain> = {
+    [mainnet.id]: mainnet,
+    [polygon.id]: polygon,
+    [bsc.id]: bsc,
+    [viemChains.sepolia.id]: viemChains.sepolia
+  };
+
+  private providers: Record<number, string> = {
+    [mainnet.id]: process.env.INFURA_PROVIDER_MAINNET,
+    [polygon.id]: process.env.INFURA_PROVIDER_POLYGON,
+    [bsc.id]: process.env.INFURA_PROVIDER_BSC,
+    [viemChains.sepolia.id]: process.env.INFURA_PROVIDER_SEPOLIA
+  };
+
   constructor(private authTokenService: AuthTokenService) {
     const appId = process.env.PRIVY_APP_ID;
     const appSecret = process.env.PRIVY_APP_SECRET;
@@ -42,7 +60,7 @@ export default class WalletClientService {
     this.privy = new PrivyClient(appId, appSecret, {
       walletApi: {
         authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
-      }
+      },
     });
   }
 
@@ -82,10 +100,48 @@ export default class WalletClientService {
     }
   }
 
-  async createWalletClient(
-    authToken: string,
-    chain: SupportedChain,
-  ): Promise<WalletClient> {
+  async getChainFromId(chainId: number): Promise<Chain> | undefined {
+    return this.chainFromChainId[chainId];
+  }
+
+  async getProviderFromChainId(chainId: number): Promise<string> | undefined {
+    return this.providers[chainId];
+  }
+
+  async createPublicClient(chainId: number) {
+    try {
+      const chain = await this.getChainFromId(chainId);
+      const provider = await this.getProviderFromChainId(chainId);
+
+      const publicClient = createPublicClient({
+        chain: chain,
+        transport: http(provider),
+      });
+
+      if (!publicClient) {
+        throw new Error('Wallet Client not initialized');
+      }
+
+      console.log(`Public client created for chainId ${chainId}: `);
+      
+      return publicClient;
+    } catch (error) {
+      console.error(
+        `Wallet client creation failed with error: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async createWalletClient({
+    authToken,
+    chain,
+    chainId,
+  }: {
+    authToken: string;
+    chain?: SupportedChain;
+    chainId?: number;
+  }): Promise<WalletClient> {
     try {
       const verifiedAuthToken =
         await this.authTokenService.verifyAuthToken(authToken);
@@ -115,25 +171,32 @@ export default class WalletClientService {
         privy: this.privy,
       });
 
-      const selectedChain = this.chains[chain];
+      let selectedChain;
 
-      if (!selectedChain) {
-        throw new Error('The chain you asked is not supported.');
+      if (chain) {
+        selectedChain = this.chains[chain];
+
+        if (!selectedChain) {
+          throw new Error('The chain you asked is not supported.');
+        }
+      } else if (chainId) {
+        selectedChain = await this.getChainFromId(chainId);
       }
+
+      const provider = await this.getProviderFromChainId(selectedChain.id);
+      console.log('provider: ', provider);
 
       const client: WalletClient = createWalletClient({
         account: account as Account, // `Account` instance from above
         chain: selectedChain, // Replace with your desired network
-        transport: http(
-          'https://polygon-mainnet.infura.io/v3/83d21f55255f46aba00654f32fc0a153',
-        ),
+        transport: http(provider),
       });
 
       if (!client) {
         throw new Error('Wallet Client not initialized');
       }
-      console.log("walletclient created");
-      
+      console.log(`walletclient created for chainID ${chainId}: `);
+
       return client;
     } catch (error) {
       console.error(
