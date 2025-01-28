@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@elizaos/core": "^0.1.8",
+    "@liaoliaots/nestjs-redis": "^10.0.0",
     "@lifi/sdk": "^3.4.1",
     "@nestjs/class-validator": "^0.13.4",
     "@nestjs/common": "^10.0.0",
@@ -30,6 +31,7 @@
     "@privy-io/server-auth": "^1.18.1",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
+    "ioredis": "^5.4.2",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "uuid": "^11.0.5",

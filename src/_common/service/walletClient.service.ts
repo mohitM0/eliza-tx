@@ -16,12 +16,17 @@ import {
 import * as viemChains from 'viem/chains';
 import { SupportedChain } from 'src/evm-tx/dto/create-evm-tx.dto';
 import { bsc, mainnet, polygon } from 'viem/chains';
+import * as crypto from 'crypto'; 
+import { RedisService } from '@liaoliaots/nestjs-redis';
+import { Redis } from 'ioredis';
 
 dotenv.config();
 
 @Injectable()
 export default class WalletClientService {
   private readonly privy: PrivyClient;
+  private readonly redisClient: Redis;
+
   chains: Record<string, Chain> = {
     ethereum: viemChains.mainnet,
     sepolia: viemChains.sepolia,
@@ -31,25 +36,37 @@ export default class WalletClientService {
     baseSepolia: viemChains.baseSepolia,
     polygon: viemChains.polygon,
     arbitrum: viemChains.arbitrum,
+    gnosis: viemChains.gnosis,
   };
 
   private chainFromChainId: Record<number, Chain> = {
     [mainnet.id]: mainnet,
     [polygon.id]: polygon,
     [bsc.id]: bsc,
-    [viemChains.sepolia.id]: viemChains.sepolia
+    [viemChains.sepolia.id]: viemChains.sepolia,
+    [viemChains.bscTestnet.id]: viemChains.bscTestnet,
+    [viemChains.base.id]: viemChains.base,
+    [viemChains.baseSepolia.id]: viemChains.baseSepolia,
+    [viemChains.arbitrum.id]: viemChains.arbitrum,
+    [viemChains.gnosis.id]: viemChains.gnosis,
   };
 
   private providers: Record<number, string> = {
     [mainnet.id]: process.env.INFURA_PROVIDER_MAINNET,
     [polygon.id]: process.env.INFURA_PROVIDER_POLYGON,
     [bsc.id]: process.env.INFURA_PROVIDER_BSC,
-    [viemChains.sepolia.id]: process.env.INFURA_PROVIDER_SEPOLIA
+    [viemChains.sepolia.id]: process.env.INFURA_PROVIDER_SEPOLIA,
+    [viemChains.gnosis.id]: process.env.INFURA_PROVIDER_GNOSIS,
   };
 
-  constructor(private authTokenService: AuthTokenService) {
+  constructor(
+    private authTokenService: AuthTokenService,
+    private redisService: RedisService
+  ) {
     const appId = process.env.PRIVY_APP_ID;
     const appSecret = process.env.PRIVY_APP_SECRET;
+
+    this.redisClient = this.redisService.getOrThrow();
 
     if (!appId || !appSecret) {
       throw new Error(
@@ -133,6 +150,18 @@ export default class WalletClientService {
     }
   }
 
+  private hashAuthToken(authToken: string): string {
+    const secretKey = process.env.HASH_SECRET_KEY;
+    if (!secretKey) {
+      throw new Error('HASH_SECRET_KEY must be set in environment variables.');
+    }
+
+    return crypto
+      .createHmac('sha256', secretKey)
+      .update(authToken)
+      .digest('hex');
+  }
+
   async createWalletClient({
     authToken,
     chain,
@@ -143,14 +172,30 @@ export default class WalletClientService {
     chainId?: number;
   }): Promise<WalletClient> {
     try {
-      const verifiedAuthToken =
-        await this.authTokenService.verifyAuthToken(authToken);
-      if (!verifiedAuthToken) {
-        throw new Error('User is not verified.');
+      const hashedAuthToken = this.hashAuthToken(authToken);
+      const cacheKey = `walletClient:${hashedAuthToken}`;
+      const cachedData = await this.redisClient.get(cacheKey);
+
+      let userId: string;
+      if (cachedData) {
+        console.log('Returning cached wallet client.');
+        console.log('cachedData: ', cachedData);
+        const data = JSON.parse(cachedData);
+        userId = data.userId;
+      } else {
+        const verifiedAuthToken =  await this.authTokenService.verifyAuthToken(authToken);
+        
+        if (!verifiedAuthToken) {
+          throw new Error('User is not verified.');
+        }
+
+        userId = verifiedAuthToken.userId;
+        await this.redisClient.set(cacheKey, JSON.stringify({userId}), 'EX', 60 * 60);
       }
+
       // console.log('userId: ', verifiedAuthToken.userId);
 
-      const user: any = await this.privy.getUserById(verifiedAuthToken.userId);
+      const user: any = await this.privy.getUserById(userId);
       const privyEthereumAccount = user.linkedAccounts.find(
         (account) =>
           account.walletClientType === 'privy' &&

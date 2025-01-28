@@ -26,6 +26,7 @@ import {
   Step,
   isCrossStep,
   getTokenAllowance,
+  getGasRecommendation
 } from '@lifi/sdk';
 import {
   Account,
@@ -832,21 +833,62 @@ export class EvmTxService {
 
     const fromAmount = parseEther(BridgePayload.amount);
     const fromAmountString = fromAmount.toString();
+    const toChainId = this.walletClientService.chains[BridgePayload.toChain].id;
+    const fromChainId = this.walletClientService.chains[BridgePayload.fromChain].id;
+    let routes;
 
-    const routes = await getRoutes({
+    const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayload.fromToken, fromChainId)
+    // const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.recommended.amount : undefined
+    const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.fromAmount : undefined
+    console.log('fromAmountForGas:', fromAmountForGas);
+    routes = await getRoutes({
       fromTokenAddress: BridgePayload.fromToken,
       toTokenAddress: BridgePayload.toToken,
       fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
-      toChainId: this.walletClientService.chains[BridgePayload.toChain].id,
+      toChainId: toChainId,
       fromAmount: fromAmountString,
       fromAddress: fromAddress,
       toAddress: BridgePayload.toAddress || fromAddress,
-      // fromAmountForGas: fromAmountString,
+      // fromAmountForGas: fromAmountForGas,
       // options: {
       //   fee: 0.02,
       //   integrator: 'elizaM0',
       // },
     });
+
+    // if([137, 1, 100].includes(toChainId)){
+    //   const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayload.fromToken, fromChainId)
+    //   const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.recommended.amount : undefined
+    //   routes = await getRoutes({
+    //     fromTokenAddress: BridgePayload.fromToken,
+    //     toTokenAddress: BridgePayload.toToken,
+    //     fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+    //     toChainId: toChainId,
+    //     fromAmount: fromAmountString,
+    //     fromAddress: fromAddress,
+    //     toAddress: BridgePayload.toAddress || fromAddress,
+    //     fromAmountForGas: fromAmountForGas,
+    //     // options: {
+    //     //   fee: 0.02,
+    //     //   integrator: 'elizaM0',
+    //     // },
+    //   });
+    // } else{
+    //   routes = await getRoutes({
+    //     fromTokenAddress: BridgePayload.fromToken,
+    //     toTokenAddress: BridgePayload.toToken,
+    //     fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+    //     toChainId: toChainId,
+    //     fromAmount: fromAmountString,
+    //     fromAddress: fromAddress,
+    //     toAddress: BridgePayload.toAddress || fromAddress,
+    //     // options: {
+    //     //   fee: 0.02,
+    //     //   integrator: 'elizaM0',
+    //     // },
+    //   });
+    // }
+
     console.log('routes:', routes);
 
     if (!routes.routes.length) throw new Error('No routes found');
@@ -902,28 +944,32 @@ export class EvmTxService {
         // });
 
         const transactionParam = {
-          to: tokenAddress,
+          to: step.action.fromToken.address,
           chainId: chainId,
           data: data,
           // gasLimit: parseInt(BigInt(21700).toString()),
-          // nonce: Number(nonce),
+          // // nonce: Number(nonce),
           // maxFeePerGas: parseInt(BigInt(50000000000).toString()),
           // maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
         };
-
-        const approved: any =
-          await this.privy.walletApi.ethereum.sendTransaction({
-            address: walletClient.account.address.toLowerCase(),
-            chainType: 'ethereum',
-            caip2: `eip155:${chainId}`,
-            transaction: transactionParam,
-          });
+        let approved: any
+        try {
+          approved =
+            await this.privy.walletApi.ethereum.sendTransaction({
+              address: walletClient.account.address.toLowerCase(),
+              chainType: 'ethereum',
+              caip2: `eip155:${chainId}`,
+              transaction: transactionParam,
+            });
+            console.log('approval hash:', approved.hash);
+        } catch (error) {
+          console.error('Error sending transaction:', error);
+        }
 
         // const approved = {
         //   hash: '0xd3b81366bd348b10ea8f2e0d9bda8121dd7084c2cfb140ca093eeeb1d7b01a40' as `0x${string}`,
         // };
 
-        console.log('approval hash:', approved.hash);
 
         // Function to wait for transaction confirmation
         const waitForConfirmation = async (
@@ -963,8 +1009,8 @@ export class EvmTxService {
         await waitForConfirmation(approved.hash as Hash);
 
         const token = {
-          address: tokenAddress,
-          chainId: chainId,
+          address: step.action.fromToken.address,
+          chainId: step.action.fromChainId,
         };
 
         const allowance = await getTokenAllowance(
@@ -994,6 +1040,11 @@ export class EvmTxService {
         // }
 
         await waitForConfirmation(transactionHash.hash as Hash);
+
+        const additionalWaitTime = 90000; // 1 minute in milliseconds
+        console.log(`Waiting for an additional ${additionalWaitTime / 1000} seconds after confirmation...`);
+        await new Promise((resolve) => setTimeout(resolve, additionalWaitTime));
+
 
         let status;
         do {
@@ -1039,6 +1090,21 @@ export class EvmTxService {
       chainId: this.walletClientService.chains[BridgePayload.fromChain].id,
     };
   }
+
+  async getGasSuggestion(toChainId: number, fromToken: string, fromChainId: number) {
+    try {
+      const gasSuggestion = await getGasRecommendation({
+        chainId: toChainId,
+        fromToken: fromToken,
+        fromChain: fromChainId,
+      });
+      console.log('gasSuggestion:', gasSuggestion);
+      return gasSuggestion;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  
 }
 
 // 1) check why 0.3 polygon is deducting from the account
