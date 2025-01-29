@@ -54,7 +54,7 @@ import * as dotenv from 'dotenv';
 import { log } from 'console';
 import { returnStepsExecution } from 'src/_common/helper/returnStepsExecution';
 import { approvalABI, transferABI } from 'src/_common/helper/abi';
-import { avalanche, bsc, mainnet, polygon } from 'viem/chains';
+import { Transaction } from 'src/_common/utils/interface';
 
 dotenv.config();
 
