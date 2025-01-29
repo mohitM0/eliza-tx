@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrivyClient, User } from '@privy-io/server-auth';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { LinkedAccountWithMetadata, PrivyClient, User } from '@privy-io/server-auth';
 import * as dotenv from 'dotenv';
 import { createViemAccount } from '@privy-io/server-auth/viem';
 import AuthTokenService from './authToken.service';
@@ -142,17 +142,12 @@ export default class WalletClientService {
       });
 
       if (!publicClient) {
-        throw new Error('Wallet Client not initialized');
+        throw new InternalServerErrorException('Public Client not initialized');
       }
-
-      console.log(`Public client created for chainId ${chainId}: `);
-      
+  
       return publicClient;
     } catch (error) {
-      console.error(
-        `Wallet client creation failed with error: ${error.message}`,
-      );
-      throw error;
+      throw new InternalServerErrorException(error.message);
     }
   }
 
@@ -184,8 +179,6 @@ export default class WalletClientService {
 
       let userId: string;
       if (cachedData) {
-        console.log('Returning cached wallet client.');
-        console.log('cachedData: ', cachedData);
         const data = JSON.parse(cachedData);
         userId = data.userId;
       } else {
@@ -201,15 +194,20 @@ export default class WalletClientService {
 
       // console.log('userId: ', verifiedAuthToken.userId);
 
-      const user: any = await this.privy.getUserById(userId);
-      const privyEthereumAccount = user.linkedAccounts.find(
+      const user = await this.privy.getUserById(userId);
+      const privyEthereumAccount: WalletWithMetadata = user.linkedAccounts.find(
         (account) =>
           account.walletClientType === 'privy' &&
           account.connectorType === 'embedded' &&
           account.chainType === 'ethereum',
       );
 
+      if(!privyEthereumAccount.delegated) {
+        throw new BadRequestException('User has to delegate the actions for this privy account');
+      }
+
       const privyEthereumAddress = privyEthereumAccount.address;
+
       if (privyEthereumAddress) {
         console.log('Privy Ethereum Address:', privyEthereumAddress);
       } else {
@@ -228,14 +226,13 @@ export default class WalletClientService {
         selectedChain = this.chains[chain];
 
         if (!selectedChain) {
-          throw new Error('The chain you asked is not supported.');
+          throw new InternalServerErrorException('The chain you asked is not supported.');
         }
       } else if (chainId) {
         selectedChain = await this.getChainFromId(chainId);
       }
 
       const provider = await this.getProviderFromChainId(selectedChain.id);
-      console.log('provider: ', provider);
 
       const client: WalletClient = createWalletClient({
         account: account as Account, // `Account` instance from above
@@ -244,16 +241,11 @@ export default class WalletClientService {
       });
 
       if (!client) {
-        throw new Error('Wallet Client not initialized');
+        throw new InternalServerErrorException('Wallet Client not initialized');
       }
-      console.log(`walletclient created for chainID ${chainId}: `);
-
       return client;
     } catch (error) {
-      console.error(
-        `Wallet client creation failed with error: ${error.message}`,
-      );
-      throw error;
+      throw new InternalServerErrorException(error.message);
     }
   }
 }
