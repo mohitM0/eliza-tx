@@ -1,54 +1,56 @@
 import { Address, Hash } from 'viem';
-import * as viemChains from 'viem/chains';
-
-const _SupportedChainList = Object.keys(viemChains) as Array<
-  keyof typeof viemChains
->;
-export type SupportedChain = (typeof _SupportedChainList)[number];
+import { SupportedChain } from 'src/_common/utils/types';
+import { IsEthereumAddress, IsOptional, IsString ,} from '@nestjs/class-validator';
 
 export class TransferDTO {
+
+  @IsString()
   fromChain: SupportedChain;
+
+  @IsEthereumAddress()
   toAddress: Address;
+
+  @IsString()
   amount: string;
+
+  @IsString()
   token: string;
 }
 
-// export class SwapPayload {
-//   chain: SupportedChain;
-//   fromToken: Address;
-//   toToken: Address;
-//   amount: string;
-//   slippage?: number;
-// }
-
 export class SwapPayload {
+
+  @IsString()
   inputToken: string;
+
+  @IsString()
   outputToken: string;
+
+  @IsString()
   amount: string;
+
+  @IsString()
   chain: SupportedChain;
 }
 
 
 export class BridgePayload {
+
+  @IsString()
   fromChain: SupportedChain;
+
+  @IsString()
   toChain: SupportedChain;
+
+  @IsEthereumAddress()
   fromToken: Address;
+
+  @IsEthereumAddress()
   toToken: Address;
+
+  @IsString()
   amount: string;
+
+  @IsOptional()
+  @IsEthereumAddress()
   toAddress?: Address;
-}
-
-export interface Transaction {
-  hash: Hash;
-  from: Address;
-  to: Address;
-  value: bigint;
-  data?: `0x${string}`;
-  chainId?: number;
-}
-
-export interface walletClientInputType {
-  authToken: string;
-  chain?: SupportedChain;
-  chainId?: number;
 }
