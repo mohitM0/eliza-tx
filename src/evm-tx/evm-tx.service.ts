@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
-  BridgePayload,
-  SwapPayload,
-  Transaction,
+  BridgePayloadDTO,
+  SwapPayloadDTO,
   TransferDTO,
 } from './dto/create-evm-tx.dto';
 import {
@@ -235,28 +234,28 @@ export class EvmTxService {
   }
 
   // async swap(
-  //   SwapPayload: SwapPayload,
+  //   SwapPayloadDTO: SwapPayloadDTO,
   //   authToken: string,
   // ): Promise<Transaction> {
   //   try {
   //     const walletClient: WalletClient =
   //       await this.walletClientService.createWalletClient({
   //         authToken,
-  //         chain: SwapPayload.chain,
+  //         chain: SwapPayloadDTO.chain,
   //       });
   //     const [fromAddress] = await walletClient.getAddresses();
 
   //     const chainId =
-  //       await this.walletClientService.chains[SwapPayload.chain].id;
+  //       await this.walletClientService.chains[SwapPayloadDTO.chain].id;
 
   //     // await this.getTokenList(chainId);
 
   //     const inputTokenAddress = await this.getTokenAddress(
-  //       SwapPayload.inputToken.toUpperCase(),
+  //       SwapPayloadDTO.inputToken.toUpperCase(),
   //       chainId,
   //     );
   //     const outputTokenAddress = await this.getTokenAddress(
-  //       SwapPayload.outputToken.toUpperCase(),
+  //       SwapPayloadDTO.outputToken.toUpperCase(),
   //       chainId,
   //     );
 
@@ -302,12 +301,12 @@ export class EvmTxService {
   //       ) as ExtendedChain[],
   //     });
 
-  //     const fromAmount = parseEther(SwapPayload.amount);
+  //     const fromAmount = parseEther(SwapPayloadDTO.amount);
   //     const fromAmountString = fromAmount.toString();
 
   //     const routes = await getRoutes({
-  //       fromChainId: this.walletClientService.chains[SwapPayload.chain].id,
-  //       toChainId: this.walletClientService.chains[SwapPayload.chain].id,
+  //       fromChainId: this.walletClientService.chains[SwapPayloadDTO.chain].id,
+  //       toChainId: this.walletClientService.chains[SwapPayloadDTO.chain].id,
   //       fromTokenAddress: inputTokenAddress,
   //       toTokenAddress: outputTokenAddress,
   //       fromAmount: fromAmountString as string,
@@ -350,7 +349,7 @@ export class EvmTxService {
   //             chainId: chainId,
   //           });
   //           const tokenAddress = await this.getTokenAddress(
-  //             SwapPayload.inputToken,
+  //             SwapPayloadDTO.inputToken,
   //             chainId,
   //           );
   //           const token = {
@@ -499,10 +498,10 @@ export class EvmTxService {
   //       hash: process.txHash as `0x${string}`,
   //       from: fromAddress,
   //       to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
-  //       value: BigInt(SwapPayload.amount),
+  //       value: BigInt(SwapPayloadDTO.amount),
   //       //@ts-ignore
   //       data: process.data as `0x${string}`,
-  //       chainId: this.walletClientService.chains[SwapPayload.chain].id,
+  //       chainId: this.walletClientService.chains[SwapPayloadDTO.chain].id,
   //     };
   //   } catch (error) {
   //     console.error('Error during swap:', error);
@@ -511,26 +510,26 @@ export class EvmTxService {
   // }
 
   async swap(
-    SwapPayload: SwapPayload,
+    SwapPayloadDTO: SwapPayloadDTO,
     authToken: string,
   ): Promise<Transaction> {
     try {
       const walletClient: WalletClient =
         await this.walletClientService.createWalletClient({
           authToken,
-          chain: SwapPayload.chain,
+          chain: SwapPayloadDTO.chain,
         });
       const [fromAddress] = await walletClient.getAddresses();
   
       const chainId =
-        await this.walletClientService.chains[SwapPayload.chain].id;
+        await this.walletClientService.chains[SwapPayloadDTO.chain].id;
   
       const inputTokenAddress = await this.getTokenAddress(
-        SwapPayload.inputToken.toUpperCase(),
+        SwapPayloadDTO.inputToken.toUpperCase(),
         chainId,
       );
       const outputTokenAddress = await this.getTokenAddress(
-        SwapPayload.outputToken.toUpperCase(),
+        SwapPayloadDTO.outputToken.toUpperCase(),
         chainId,
       );
   
@@ -571,14 +570,14 @@ export class EvmTxService {
         ) as ExtendedChain[],
       });
   
-      const fromAmount = parseEther(SwapPayload.amount);
+      const fromAmount = parseEther(SwapPayloadDTO.amount);
       const fromAmountString = fromAmount.toString();
 
       const publicClient = await this.walletClientService.createPublicClient(chainId);
   
       const routes = await getRoutes({
-        fromChainId: this.walletClientService.chains[SwapPayload.chain].id,
-        toChainId: this.walletClientService.chains[SwapPayload.chain].id,
+        fromChainId: this.walletClientService.chains[SwapPayloadDTO.chain].id,
+        toChainId: this.walletClientService.chains[SwapPayloadDTO.chain].id,
         fromTokenAddress: inputTokenAddress,
         toTokenAddress: outputTokenAddress,
         fromAmount: fromAmountString as string,
@@ -605,7 +604,7 @@ export class EvmTxService {
               chainId: chainId,
             });
           const tokenAddress = await this.getTokenAddress(
-            SwapPayload.inputToken,
+            SwapPayloadDTO.inputToken,
             chainId,
           );
           const token = {
@@ -706,10 +705,10 @@ export class EvmTxService {
         hash: process.txHash as `0x${string}`,
         from: fromAddress,
         to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
-        value: BigInt(SwapPayload.amount),
+        value: BigInt(SwapPayloadDTO.amount),
         //@ts-ignore
         data: process.data as `0x${string}`,
-        chainId: this.walletClientService.chains[SwapPayload.chain].id,
+        chainId: this.walletClientService.chains[SwapPayloadDTO.chain].id,
       };
     } catch (error) {
       console.error('Error during swap:', error);
@@ -717,13 +716,14 @@ export class EvmTxService {
     }
   }
 
+  //TODO: add solana support for bridge later.
   async bridge(
-    BridgePayload: BridgePayload,
+    BridgePayloadDTO: BridgePayloadDTO,
     authToken: string,
   ): Promise<Transaction> {
     const walletClient = await this.walletClientService.createWalletClient({
       authToken: authToken,
-      chain: BridgePayload.fromChain,
+      chain: BridgePayloadDTO.fromChain,
     });
     const [fromAddress] = await walletClient.getAddresses();
 
@@ -755,24 +755,24 @@ export class EvmTxService {
     });
     console.log('below create config');
 
-    const fromAmount = parseEther(BridgePayload.amount);
+    const fromAmount = parseEther(BridgePayloadDTO.amount);
     const fromAmountString = fromAmount.toString();
-    const toChainId = this.walletClientService.chains[BridgePayload.toChain].id;
-    const fromChainId = this.walletClientService.chains[BridgePayload.fromChain].id;
+    const toChainId = this.walletClientService.chains[BridgePayloadDTO.toChain].id;
+    const fromChainId = this.walletClientService.chains[BridgePayloadDTO.fromChain].id;
     let routes;
 
-    const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayload.fromToken, fromChainId)
+    const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayloadDTO.fromToken, fromChainId)
     // const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.recommended.amount : undefined
     const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.fromAmount : undefined
     console.log('fromAmountForGas:', fromAmountForGas);
     routes = await getRoutes({
-      fromTokenAddress: BridgePayload.fromToken,
-      toTokenAddress: BridgePayload.toToken,
-      fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+        fromTokenAddress: BridgePayloadDTO.fromToken,
+        toTokenAddress: BridgePayloadDTO.toToken,
+        fromChainId: fromChainId,
       toChainId: toChainId,
       fromAmount: fromAmountString,
       fromAddress: fromAddress,
-      toAddress: BridgePayload.toAddress || fromAddress,
+        toAddress: BridgePayloadDTO.toAddress || fromAddress,
       // fromAmountForGas: fromAmountForGas,
       // options: {
       //   fee: 0.02,
@@ -781,16 +781,16 @@ export class EvmTxService {
     });
 
     // if([137, 1, 100].includes(toChainId)){
-    //   const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayload.fromToken, fromChainId)
+    //   const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayloadDTO.fromToken, fromChainId)
     //   const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.recommended.amount : undefined
     //   routes = await getRoutes({
-    //     fromTokenAddress: BridgePayload.fromToken,
-    //     toTokenAddress: BridgePayload.toToken,
-    //     fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+    //     fromTokenAddress: BridgePayloadDTO.fromToken,
+    //     toTokenAddress: BridgePayloadDTO.toToken,
+    //     fromChainId: this.walletClientService.chains[BridgePayloadDTO.fromChain].id,
     //     toChainId: toChainId,
     //     fromAmount: fromAmountString,
     //     fromAddress: fromAddress,
-    //     toAddress: BridgePayload.toAddress || fromAddress,
+    //     toAddress: BridgePayloadDTO.toAddress || fromAddress,
     //     fromAmountForGas: fromAmountForGas,
     //     // options: {
     //     //   fee: 0.02,
@@ -799,13 +799,13 @@ export class EvmTxService {
     //   });
     // } else{
     //   routes = await getRoutes({
-    //     fromTokenAddress: BridgePayload.fromToken,
-    //     toTokenAddress: BridgePayload.toToken,
-    //     fromChainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+    //     fromTokenAddress: BridgePayloadDTO.fromToken,
+    //     toTokenAddress: BridgePayloadDTO.toToken,
+    //     fromChainId: this.walletClientService.chains[BridgePayloadDTO.fromChain].id,
     //     toChainId: toChainId,
     //     fromAmount: fromAmountString,
     //     fromAddress: fromAddress,
-    //     toAddress: BridgePayload.toAddress || fromAddress,
+    //     toAddress: BridgePayloadDTO.toAddress || fromAddress,
     //     // options: {
     //     //   fee: 0.02,
     //     //   integrator: 'elizaM0',
@@ -963,8 +963,8 @@ export class EvmTxService {
       hash: process.txHash as `0x${string}`,
       from: fromAddress,
       to: routes.routes[0].steps[0].estimate.approvalAddress as `0x${string}`,
-      value: BigInt(BridgePayload.amount),
-      chainId: this.walletClientService.chains[BridgePayload.fromChain].id,
+      value: BigInt(BridgePayloadDTO.amount),
+      chainId: this.walletClientService.chains[BridgePayloadDTO.fromChain].id,
     };
   }
 

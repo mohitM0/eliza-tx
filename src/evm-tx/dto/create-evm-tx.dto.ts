@@ -1,4 +1,4 @@
-import { Address, Hash } from 'viem';
+import { Address } from 'viem';
 import { SupportedChain } from 'src/_common/utils/types';
 import { IsEthereumAddress, IsOptional, IsString ,} from '@nestjs/class-validator';
 
@@ -17,8 +17,8 @@ export class TransferDTO {
   token: string;
 }
 
-export class SwapPayload {
-
+export class SwapPayloadDTO {
+  
   @IsString()
   inputToken: string;
 
@@ -33,7 +33,7 @@ export class SwapPayload {
 }
 
 
-export class BridgePayload {
+export class BridgePayloadDTO {
 
   @IsString()
   fromChain: SupportedChain;
