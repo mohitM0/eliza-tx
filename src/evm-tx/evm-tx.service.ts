@@ -622,6 +622,25 @@ export class EvmTxService {
               functionName: 'approve',
               args: [approvalAddress, approvalAmount],
             });
+
+            const nativeBalance = await publicClient.getBalance({
+              address: walletClient.account.address,
+            });
+    
+            const gas = await publicClient.estimateGas({
+              data,
+              account: walletClient.account.address,
+              to: step.action.fromToken.address,
+            })
+    
+            console.log('Native balance:', nativeBalance);
+            console.log('Estimated gas:', gas);
+    
+            // Check if native balance is less than estimated gas
+            if (nativeBalance < gas) {
+              console.error('Native balance is less than estimated gas. Transaction cannot proceed.');
+              return; // Change when response type is defined
+            }    
     
             const transactionParam = {
               to: tokenAddress,
@@ -641,10 +660,6 @@ export class EvmTxService {
   
             // Wait for approval transaction to be confirmed
             await this.waitForConfirmation(publicClient as PublicClient, approved.hash as Hash);
-  
-            console.log('token: ', token);
-            console.log('address: ', walletClient.account.address);
-            console.log('ap address: ', step.estimate.approvalAddress);
   
             const allowance = await getTokenAllowance(
               token,
@@ -765,20 +780,48 @@ export class EvmTxService {
     // const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.recommended.amount : undefined
     const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.fromAmount : undefined
     console.log('fromAmountForGas:', fromAmountForGas);
-    routes = await getRoutes({
+
+    // Fetch the native balance of the wallet address on the toChainId
+    const toChainPublicClient = await this.walletClientService.createPublicClient(toChainId);
+    const nativeBalance = await toChainPublicClient.getBalance({
+      address: fromAddress,
+    });
+    console.log('Native balance on toChainId:', nativeBalance);
+
+    // Compare the balance with the fromAmountForGas
+    const fromAmountForGasBigInt = gasSuggestion?.available ? BigInt(gasSuggestion.recommended.amount) : BigInt(0);
+    if (nativeBalance < fromAmountForGasBigInt) {
+      console.log('Native balance is less than fromAmountForGas, setting fromAmountForGas in routes.');
+      routes = await getRoutes({
         fromTokenAddress: BridgePayloadDTO.fromToken,
         toTokenAddress: BridgePayloadDTO.toToken,
         fromChainId: fromChainId,
-      toChainId: toChainId,
-      fromAmount: fromAmountString,
-      fromAddress: fromAddress,
+        toChainId: toChainId,
+        fromAmount: fromAmountString,
+        fromAddress: fromAddress,
         toAddress: BridgePayloadDTO.toAddress || fromAddress,
-      // fromAmountForGas: fromAmountForGas,
-      // options: {
-      //   fee: 0.02,
-      //   integrator: 'elizaM0',
-      // },
-    });
+        fromAmountForGas: fromAmountForGas,
+        // options: {
+        //   fee: 0.02,
+        //   integrator: 'elizaM0',
+        // },
+      });
+    } else {
+      console.log('Native balance is sufficient, not setting fromAmountForGas in routes.');
+      routes = await getRoutes({
+        fromTokenAddress: BridgePayloadDTO.fromToken,
+        toTokenAddress: BridgePayloadDTO.toToken,
+        fromChainId: fromChainId,
+        toChainId: toChainId,
+        fromAmount: fromAmountString,
+        fromAddress: fromAddress,
+        toAddress: BridgePayloadDTO.toAddress || fromAddress,
+        // options: {
+        //   fee: 0.02,
+        //   integrator: 'elizaM0',
+        // },
+      });
+    }
 
     // if([137, 1, 100].includes(toChainId)){
     //   const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayloadDTO.fromToken, fromChainId)
@@ -849,20 +892,45 @@ export class EvmTxService {
         const publicClient =
           await this.walletClientService.createPublicClient(chainId);
 
-        // const nonce = await publicClient.getTransactionCount({
-        //   address: walletClient.account.address,
-        // });
+        const nativeBalance = await publicClient.getBalance({
+          address: walletClient.account.address,
+        });
+
+        const gas = await publicClient.estimateGas({
+          data,
+          account: walletClient.account.address,
+          to: step.action.fromToken.address,
+        })
+
+        console.log('Native balance:', nativeBalance);
+        console.log('Estimated gas:', gas);
+
+        // Check if native balance is less than estimated gas
+        if (nativeBalance < gas) {
+          console.error('Native balance is less than estimated gas. Transaction cannot proceed.');
+          return; // Chnage when response type is defined
+        }
+
+        const nonce = await publicClient.getTransactionCount({
+          address: walletClient.account.address,
+        });
 
         const transactionParam = {
           to: step.action.fromToken.address,
           chainId: chainId,
           data: data,
           // gasLimit: parseInt(BigInt(21700).toString()),
-          // // nonce: Number(nonce),
+          // nonce: Number(nonce),
           // maxFeePerGas: parseInt(BigInt(50000000000).toString()),
           // maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
         };
         let approved: any
+        console.log({
+          address: walletClient.account.address.toLowerCase(),
+          chainType: 'ethereum',
+          caip2: `eip155:${chainId}`,
+          transaction: transactionParam,
+        })
         try {
           approved =
             await this.privy.walletApi.ethereum.sendTransaction({
