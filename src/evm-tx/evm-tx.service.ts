@@ -53,7 +53,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import * as dotenv from 'dotenv';
 import { log } from 'console';
 import { returnStepsExecution } from 'src/_common/helper/returnStepsExecution';
-import { parse } from 'path';
+import { approvalABI, transferABI } from 'src/_common/helper/abi';
 import { avalanche, bsc, mainnet, polygon } from 'viem/chains';
 
 dotenv.config();
@@ -201,19 +201,6 @@ export class EvmTxService {
 
     if (!nativeTransfer) {
       try {
-        const transferABI = [
-          {
-            type: 'function',
-            name: 'transfer',
-            inputs: [
-              { name: 'to', type: 'address' },
-              { name: 'amount', type: 'uint256' },
-            ],
-            outputs: [{ name: '', type: 'bool' }],
-            stateMutability: 'nonpayable',
-          },
-        ];
-
         const erc20TokenAddress = await this.getTokenAddress(
           TransferPayload.token,
           fromChain.id,
@@ -688,6 +675,7 @@ export class EvmTxService {
   
             const data = encodeFunctionData({
               abi: approvalABI,
+              functionName: 'approve',
               args: [approvalAddress, approvalAmount],
             });
     
@@ -896,18 +884,7 @@ export class EvmTxService {
     // const executionOptions = {
     //   updateRouteHook: returnStepsExecution,
     // };
-    const approvalABI = [
-      {
-        type: 'function',
-        name: 'approve',
-        inputs: [
-          { name: 'spender', type: 'address' },
-          { name: 'amount', type: 'uint256' },
-        ],
-        outputs: [{ name: '', type: 'bool' }],
-        stateMutability: 'nonpayable',
-      },
-    ];
+
 
     let i = 1;
     try {
@@ -927,7 +904,7 @@ export class EvmTxService {
 
         const data = encodeFunctionData({
           abi: approvalABI,
-          // functionName: 'approve',
+          functionName: 'approve',
           args: [approvalAddress, approvalAmount],
         });
 
