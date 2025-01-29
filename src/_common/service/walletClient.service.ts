@@ -15,7 +15,6 @@ import {
 } from 'viem';
 import * as viemChains from 'viem/chains';
 import { SupportedChain } from 'src/evm-tx/dto/create-evm-tx.dto';
-import { bsc, mainnet, polygon } from 'viem/chains';
 import * as crypto from 'crypto'; 
 import { RedisService } from '@liaoliaots/nestjs-redis';
 import { Redis } from 'ioredis';
@@ -35,28 +34,35 @@ export default class WalletClientService {
     base: viemChains.base,
     baseSepolia: viemChains.baseSepolia,
     polygon: viemChains.polygon,
-    arbitrum: viemChains.arbitrum,
     gnosis: viemChains.gnosis,
+    arbitrum: viemChains.arbitrum,
+    optimism:viemChains.optimism
   };
 
   private chainFromChainId: Record<number, Chain> = {
-    [mainnet.id]: mainnet,
-    [polygon.id]: polygon,
-    [bsc.id]: bsc,
+    [viemChains.mainnet.id]: viemChains.mainnet,
+    [viemChains.polygon.id]: viemChains.polygon,
+    [viemChains.bsc.id]: viemChains.bsc,
     [viemChains.sepolia.id]: viemChains.sepolia,
     [viemChains.bscTestnet.id]: viemChains.bscTestnet,
     [viemChains.base.id]: viemChains.base,
     [viemChains.baseSepolia.id]: viemChains.baseSepolia,
     [viemChains.arbitrum.id]: viemChains.arbitrum,
     [viemChains.gnosis.id]: viemChains.gnosis,
+    [viemChains.optimism.id]: viemChains.optimism
   };
 
   private providers: Record<number, string> = {
-    [mainnet.id]: process.env.INFURA_PROVIDER_MAINNET,
-    [polygon.id]: process.env.INFURA_PROVIDER_POLYGON,
-    [bsc.id]: process.env.INFURA_PROVIDER_BSC,
+    [viemChains.mainnet.id]: process.env.INFURA_PROVIDER_MAINNET,
+    [viemChains.polygon.id]: process.env.INFURA_PROVIDER_POLYGON,
+    [viemChains.bsc.id]: process.env.INFURA_PROVIDER_BSC,
     [viemChains.sepolia.id]: process.env.INFURA_PROVIDER_SEPOLIA,
     [viemChains.gnosis.id]: process.env.INFURA_PROVIDER_GNOSIS,
+    [viemChains.base.id]: process.env.INFURA_PROVIDER_BASE,
+    [viemChains.baseSepolia.id]: process.env.INFURA_PROVIDER_BASE_SEPOLIA,
+    [viemChains.bscTestnet.id]: process.env.INFURA_PROVIDER_BSC_TESTNET,
+    [viemChains.arbitrum.id]: process.env.INFURA_PROVIDER_ARBITRUM,
+    [viemChains.optimism.id]: process.env.INFURA_PROVIDER_OPTIMISM
   };
 
   constructor(
