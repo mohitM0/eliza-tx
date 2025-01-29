@@ -43,7 +43,6 @@ import {
   http,
   LocalAccount,
   parseEther,
-  parseUnits,
   PublicClient,
   TransactionReceipt,
   WalletClient,
@@ -51,7 +50,6 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import * as dotenv from 'dotenv';
-import { log } from 'console';
 import { returnStepsExecution } from 'src/_common/helper/returnStepsExecution';
 import { approvalABI, transferABI } from 'src/_common/helper/abi';
 import { Transaction } from 'src/_common/utils/interface';
@@ -159,44 +157,6 @@ export class EvmTxService {
     const publicClient = await this.walletClientService.createPublicClient(
       fromChain.id,
     );
-    // const nonce = await publicClient.getTransactionCount({
-    //   address: walletClient.account.address,
-    // });
-
-    // Function to wait for transaction confirmation
-    const waitForConfirmation = async (
-      hash: Hash,
-      retries = 360,
-      interval = 5000,
-    ) => {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          // Check transaction receipt to see if it's mined
-          const receipt: TransactionReceipt =
-            await publicClient.getTransactionReceipt({
-              hash: hash,
-            });
-          console.log('receipt: ', receipt);
-
-          if (receipt && receipt.status === 'success') {
-            console.log(`Transaction ${hash} confirmed.`);
-            return receipt; // Transaction is confirmed
-          }
-        } catch (error) {
-          console.error(`Error fetching transaction receipt: ${error.message}`);
-        }
-
-        console.log(
-          `Waiting for transaction ${hash} to be confirmed... Attempt ${attempt}/${retries}`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, interval));
-      }
-
-      throw new Error(
-        `Transaction ${hash} was not confirmed after ${retries} retries.`,
-      );
-    };
-
     console.log('nativeTransfer: ', nativeTransfer);
 
     if (!nativeTransfer) {
@@ -227,7 +187,10 @@ export class EvmTxService {
           transaction,
         });
 
-        await waitForConfirmation(data.hash);
+        await this.waitForConfirmation(
+          publicClient as PublicClient,
+          data.hash as Hash,
+        );
         console.log(data.hash);
       } catch (error) {}
     } else {
@@ -249,7 +212,10 @@ export class EvmTxService {
           },
         });
 
-        await waitForConfirmation(data.hash);
+        await this.waitForConfirmation(
+          publicClient as PublicClient,
+          data.hash as Hash,
+        )
         console.log('hash: ', data.hash);
       } catch (error) {
         console.error('Error signing transaction:', error);
@@ -568,11 +534,6 @@ export class EvmTxService {
         chainId,
       );
   
-      const evmProvider = EVM({
-        getWalletClient: async () => walletClient as Client,
-        switchChain: async () => walletClient as Client,
-      });
-  
       createConfig({
         integrator: 'eliza',
         chains: Object.values(this.walletClientService.chains).map(
@@ -625,24 +586,8 @@ export class EvmTxService {
       });
   
       if (!routes.routes.length) throw new Error('No routes found');
-      const executionOptions = {
-        updateRouteHook: returnStepsExecution,
-      };
-  
+
       const route = routes.routes[0];
-  
-      const approvalABI = [
-        {
-          type: 'function',
-          name: 'approve',
-          inputs: [
-            { name: 'spender', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-          ],
-          outputs: [{ name: '', type: 'bool' }],
-          stateMutability: 'nonpayable',
-        },
-      ];
   
       try {
         for (const txStep of route.steps) {
@@ -695,13 +640,8 @@ export class EvmTxService {
   
             console.log('approval hash:', approved.hash);
   
-
-  
             // Wait for approval transaction to be confirmed
             await this.waitForConfirmation(publicClient as PublicClient, approved.hash as Hash);
-            console.log('here1');
-  
-            console.log('here 2');
   
             console.log('token: ', token);
             console.log('address: ', walletClient.account.address);
@@ -786,10 +726,6 @@ export class EvmTxService {
       chain: BridgePayload.fromChain,
     });
     const [fromAddress] = await walletClient.getAddresses();
-
-    // const evmProvider = EVM({
-    //   getWalletClient: async () => walletClient as Client,
-    // });
 
     createConfig({
       integrator: 'eliza',
@@ -908,10 +844,7 @@ export class EvmTxService {
           args: [approvalAddress, approvalAmount],
         });
 
-        const tokenAddress = await this.getTokenAddress(
-          BridgePayload.fromToken,
-          chainId,
-        );
+        
 
         const publicClient =
           await this.walletClientService.createPublicClient(chainId);
@@ -943,47 +876,11 @@ export class EvmTxService {
           console.error('Error sending transaction:', error);
         }
 
-        // const approved = {
-        //   hash: '0xd3b81366bd348b10ea8f2e0d9bda8121dd7084c2cfb140ca093eeeb1d7b01a40' as `0x${string}`,
-        // };
-
-
-        // Function to wait for transaction confirmation
-        const waitForConfirmation = async (
-          hash: Hash,
-          retries = 360,
-          interval = 5000,
-        ) => {
-          for (let attempt = 1; attempt <= retries; attempt++) {
-            try {
-              // Check transaction receipt to see if it's mined
-              const receipt: TransactionReceipt =
-                await publicClient.getTransactionReceipt({
-                  hash: hash,
-                });
-              if (receipt && receipt.status === 'success') {
-                console.log(`Transaction ${hash} confirmed.`);
-                return receipt; // Transaction is confirmed
-              }
-            } catch (error) {
-              console.error(
-                `Error fetching transaction receipt: ${error.message}`,
-              );
-            }
-
-            console.log(
-              `Waiting for transaction ${hash} to be confirmed... Attempt ${attempt}/${retries}`,
-            );
-            await new Promise((resolve) => setTimeout(resolve, interval));
-          }
-
-          throw new Error(
-            `Transaction ${hash} was not confirmed after ${retries} retries.`,
-          );
-        };
-
         // Wait for approval transaction to be confirmed
-        await waitForConfirmation(approved.hash as Hash);
+        await this.waitForConfirmation(
+          publicClient as PublicClient,
+          approved.hash as Hash,
+        );
 
         const token = {
           address: step.action.fromToken.address,
@@ -1016,9 +913,12 @@ export class EvmTxService {
         //   hash: '0x8fbf931596984d1ddb4e5f580d4270f6d9307d1f7d347eab792a3dd7d2316059'
         // }
 
-        await waitForConfirmation(transactionHash.hash as Hash);
+        await this.waitForConfirmation(
+          publicClient as PublicClient,
+          transactionHash.hash as Hash,
+        )
 
-        const additionalWaitTime = 90000; // 1 minute in milliseconds
+        const additionalWaitTime = 60000; // 1 minute in milliseconds
         console.log(`Waiting for an additional ${additionalWaitTime / 1000} seconds after confirmation...`);
         await new Promise((resolve) => setTimeout(resolve, additionalWaitTime));
 
