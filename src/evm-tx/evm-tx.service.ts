@@ -823,47 +823,9 @@ export class EvmTxService {
       });
     }
 
-    // if([137, 1, 100].includes(toChainId)){
-    //   const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayloadDTO.fromToken, fromChainId)
-    //   const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.recommended.amount : undefined
-    //   routes = await getRoutes({
-    //     fromTokenAddress: BridgePayloadDTO.fromToken,
-    //     toTokenAddress: BridgePayloadDTO.toToken,
-    //     fromChainId: this.walletClientService.chains[BridgePayloadDTO.fromChain].id,
-    //     toChainId: toChainId,
-    //     fromAmount: fromAmountString,
-    //     fromAddress: fromAddress,
-    //     toAddress: BridgePayloadDTO.toAddress || fromAddress,
-    //     fromAmountForGas: fromAmountForGas,
-    //     // options: {
-    //     //   fee: 0.02,
-    //     //   integrator: 'elizaM0',
-    //     // },
-    //   });
-    // } else{
-    //   routes = await getRoutes({
-    //     fromTokenAddress: BridgePayloadDTO.fromToken,
-    //     toTokenAddress: BridgePayloadDTO.toToken,
-    //     fromChainId: this.walletClientService.chains[BridgePayloadDTO.fromChain].id,
-    //     toChainId: toChainId,
-    //     fromAmount: fromAmountString,
-    //     fromAddress: fromAddress,
-    //     toAddress: BridgePayloadDTO.toAddress || fromAddress,
-    //     // options: {
-    //     //   fee: 0.02,
-    //     //   integrator: 'elizaM0',
-    //     // },
-    //   });
-    // }
-
     console.log('routes:', routes);
 
     if (!routes.routes.length) throw new Error('No routes found');
-
-    // const executionOptions = {
-    //   updateRouteHook: returnStepsExecution,
-    // };
-
 
     let i = 1;
     try {
