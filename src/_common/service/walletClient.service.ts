@@ -14,7 +14,7 @@ import {
   WalletClient,
 } from 'viem';
 import * as viemChains from 'viem/chains';
-import { SupportedChain } from 'src/evm-tx/dto/create-evm-tx.dto';
+import { SupportedChain } from '../utils/types';
 import * as crypto from 'crypto'; 
 import { RedisService } from '@liaoliaots/nestjs-redis';
 import { Redis } from 'ioredis';
@@ -194,8 +194,8 @@ export default class WalletClientService {
 
       // console.log('userId: ', verifiedAuthToken.userId);
 
-      const user = await this.privy.getUserById(userId);
-      const privyEthereumAccount: WalletWithMetadata = user.linkedAccounts.find(
+      const user: any = await this.privy.getUserById(userId);
+      const privyEthereumAccount = user.linkedAccounts.find(
         (account) =>
           account.walletClientType === 'privy' &&
           account.connectorType === 'embedded' &&
