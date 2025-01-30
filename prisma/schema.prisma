@@ -9,15 +9,20 @@ datasource db {
 }
 
 model txnData {
-  id              String   @id @default(cuid())
-  txnId           String   @unique
-  roomId          String
-  privyId         String
-  txnStepNo       Int
-  firstTxnHash    String
-  firstTxnStatus  String
-  firstTxnEstTime DateTime
-  secondTxnData   Json
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  roomId             String
+  privyWalletAddress String
+  txnStepNo          Int
+  firstTxnHash       String
+  firstTxnStatus     TxnStatus
+  firstTxnEstTime    DateTime
+  secondTxnData      Json
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+enum TxnStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
