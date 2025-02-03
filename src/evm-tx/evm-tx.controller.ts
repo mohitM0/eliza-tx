@@ -30,8 +30,10 @@ export class EvmTxController {
     bridge(
       @Req() req: Request,
       @Body() BridgePayloadDTO: BridgePayloadDTO,
-    ):Promise<Transaction>{
+    ){
       const authToken = req['authToken'];
+      // return this.evmTxService.bridge(BridgePayloadDTO, authToken)
+      // return this.evmTxService.getRoutes(BridgePayloadDTO, authToken)
       return this.evmTxService.bridge(BridgePayloadDTO, authToken)
     }
 
