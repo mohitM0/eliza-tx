@@ -23,3 +23,30 @@ export const transferABI = [
       stateMutability: 'nonpayable',
     },
 ];
+
+export const allowanceABI = [
+  {
+    constant: true,
+    inputs: [
+      {
+        name: "owner",
+        type: "address"
+      },
+      {
+        name: "spender",
+        type: "address"
+      }
+    ],
+    name: "allowance",
+    outputs: [
+      {
+        name: "",
+        type: "uint256"
+      }
+    ],
+    payable: false,
+    stateMutability: "view",
+    type: "function"
+  }
+  
+]
