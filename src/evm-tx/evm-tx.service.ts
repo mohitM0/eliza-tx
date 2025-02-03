@@ -11,7 +11,6 @@ import {
 import WalletClientService from 'src/_common/service/walletClient.service';
 import {
   createConfig,
-  executeRoute,
   ExtendedChain,
   getRoutes,
   EVM,
@@ -20,38 +19,27 @@ import {
   getToken,
   getStepTransaction,
   getStatus,
-  Route,
-  isSwapStep,
-  Step,
-  isCrossStep,
   getTokenAllowance,
-  getGasRecommendation
+  getGasRecommendation,
+  RoutesResponse
 } from '@lifi/sdk';
 import {
-  Account,
-  ByteArray,
-  Chain,
-  Client,
-  createPublicClient,
-  createWalletClient,
   encodeFunctionData,
   formatEther,
-  formatUnits,
   Hash,
-  Hex,
-  http,
-  LocalAccount,
   parseEther,
+  parseUnits,
   PublicClient,
   TransactionReceipt,
   WalletClient,
   zeroAddress,
 } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
 import * as dotenv from 'dotenv';
 import { returnStepsExecution } from 'src/_common/helper/returnStepsExecution';
 import { approvalABI, transferABI } from 'src/_common/helper/abi';
 import { Transaction } from 'src/_common/utils/interface';
+import { PrismaService } from 'src/_common/service/prisma.service';
+import { Prisma, TxnStatus } from '@prisma/client';
 
 dotenv.config();
 
@@ -59,7 +47,10 @@ dotenv.config();
 export class EvmTxService {
   private readonly privy: PrivyClient;
 
-  constructor(private walletClientService: WalletClientService) {
+  constructor(
+    private walletClientService: WalletClientService,
+    private prismaService: PrismaService,
+  ) {
     const appId = process.env.PRIVY_APP_ID;
     const appSecret = process.env.PRIVY_APP_SECRET;
 
@@ -732,7 +723,7 @@ export class EvmTxService {
   }
 
   //TODO: add solana support for bridge later.
-  async bridge(
+  async bridge3(
     BridgePayloadDTO: BridgePayloadDTO,
     authToken: string,
   ): Promise<Transaction> {
@@ -998,6 +989,111 @@ export class EvmTxService {
     };
   }
 
+  async getRoutes(
+    BridgePayloadDTO: BridgePayloadDTO,
+    authToken: string,
+  ) {
+    const walletClient = await this.walletClientService.createWalletClient({
+      authToken: authToken,
+      chain: BridgePayloadDTO.fromChain,
+    });
+
+    createConfig({
+      integrator: 'eliza',
+      chains: Object.values(this.walletClientService.chains).map((config) => ({
+        id: config.id,
+        name: config.name,
+        key: config.name.toLowerCase(),
+        chainType: 'EVM',
+        nativeToken: {
+          ...config.nativeCurrency,
+          chainId: config.id,
+          address: '0x0000000000000000000000000000000000000000',
+          coinKey: config.nativeCurrency.symbol,
+        },
+        metamask: {
+          chainId: `0x${config.id.toString(16)}`,
+          chainName: config.name,
+          nativeCurrency: config.nativeCurrency,
+          rpcUrls: [config.rpcUrls.default.http[0]],
+          blockExplorerUrls: [config.blockExplorers.default.url],
+        },
+        diamondAddress: '0x0000000000000000000000000000000000000000',
+        coin: config.nativeCurrency.symbol,
+        mainnet: true,
+      })) as ExtendedChain[],
+      // providers: [evmProvider],
+    });
+
+    const toChainId = this.walletClientService.chains[BridgePayloadDTO.toChain].id;
+    const fromChainId = this.walletClientService.chains[BridgePayloadDTO.fromChain].id;
+
+    const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayloadDTO.fromToken, fromChainId)
+
+    const fromChainPublicClient = await this.walletClientService.createPublicClient(fromChainId);
+    const toChainPublicClient = await this.walletClientService.createPublicClient(toChainId);
+    const nativeBalance = await toChainPublicClient.getBalance({
+      address: walletClient.account.address,
+    });
+
+    const fromAmountForGasBigInt = gasSuggestion?.available ? BigInt(gasSuggestion.recommended.amount) : BigInt(0);
+    const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.fromAmount : undefined
+
+    const tokenDec = await this.getTokenDec(BridgePayloadDTO.fromToken, fromChainId);
+
+    const fromAmount = parseUnits(BridgePayloadDTO.amount, tokenDec);
+    const fromAmountString = fromAmount.toString();
+
+    console.log({fromAmountForGasBigInt, fromAmountForGas, nativeBalance})
+    let routes:RoutesResponse;
+
+    if (nativeBalance < fromAmountForGasBigInt) {
+      console.log('Native balance is less than fromAmountForGas, setting fromAmountForGas in routes.');
+      routes = await getRoutes({
+        fromTokenAddress: BridgePayloadDTO.fromToken,
+        toTokenAddress: BridgePayloadDTO.toToken,
+        fromChainId: fromChainId,
+        toChainId: toChainId,
+        fromAmount: fromAmountString,
+        fromAddress: walletClient.account.address,
+        toAddress: BridgePayloadDTO.toAddress || walletClient.account.address,
+        fromAmountForGas: fromAmountForGas,
+      });
+    } else {
+      console.log('Native balance is sufficient, not setting fromAmountForGas in routes.');
+      routes = await getRoutes({
+        fromTokenAddress: BridgePayloadDTO.fromToken,
+        toTokenAddress: BridgePayloadDTO.toToken,
+        fromChainId: fromChainId,
+        toChainId: toChainId,
+        fromAmount:fromAmountString,
+        fromAddress: walletClient.account.address,
+        toAddress: BridgePayloadDTO.toAddress || walletClient.account.address,
+      });
+    }
+    console.log('routes length:', routes.routes.length);
+    
+    // console.log('1st route steps', routes.routes[0].steps)
+        // check the number of steps in the route
+        const stepLength = routes.routes[0].steps.length;
+        // console.log("First route",routes.routes[0])
+        // console.log('first routes steps ',routes.routes[0].steps )
+        // console.log(' first rotes steps included',routes.routes[0].steps[0].includedSteps)
+        console.log(' first rotes steps included length',routes.routes[0].steps[0].includedSteps.length)
+        console.log('routes steps length:', stepLength);
+        console.log('second step gas cost', routes.routes[0].steps[1].estimate.gasCosts)
+    
+
+    const txStep = await getStepTransaction(routes.routes[0].steps[0]);
+    console.log('txStep:', txStep);
+
+    if (!routes.routes.length) {
+      console.log('No routes found. Please try again with a different token / chain combination.');
+      return "No routes found. Please try again with a different token / chain combination."; //TODO: Change the msg later
+    }
+
+  }
+
   async getGasSuggestion(toChainId: number, fromToken: string, fromChainId: number) {
     try {
       const gasSuggestion = await getGasRecommendation({
@@ -1012,8 +1108,229 @@ export class EvmTxService {
     }
   }
   
-}
 
-// 1) check why 0.3 polygon is deducting from the account
-// 2) add the ERC20 token transfer functionality in the transfer function.
-// 3) add the allownace and ERC20 token transfer functionality in swap function.
+  async bridge(
+    BridgePayloadDTO: BridgePayloadDTO,
+    authToken: string,
+  ) {
+    const walletClient = await this.walletClientService.createWalletClient({
+      authToken: authToken,
+      chain: BridgePayloadDTO.fromChain,
+    });
+
+    createConfig({
+      integrator: 'eliza',
+      chains: Object.values(this.walletClientService.chains).map((config) => ({
+        id: config.id,
+        name: config.name,
+        key: config.name.toLowerCase(),
+        chainType: 'EVM',
+        nativeToken: {
+          ...config.nativeCurrency,
+          chainId: config.id,
+          address: '0x0000000000000000000000000000000000000000',
+          coinKey: config.nativeCurrency.symbol,
+        },
+        metamask: {
+          chainId: `0x${config.id.toString(16)}`,
+          chainName: config.name,
+          nativeCurrency: config.nativeCurrency,
+          rpcUrls: [config.rpcUrls.default.http[0]],
+          blockExplorerUrls: [config.blockExplorers.default.url],
+        },
+        diamondAddress: '0x0000000000000000000000000000000000000000',
+        coin: config.nativeCurrency.symbol,
+        mainnet: true,
+      })) as ExtendedChain[],
+      // providers: [evmProvider],
+    });
+
+    const toChainId = this.walletClientService.chains[BridgePayloadDTO.toChain].id;
+    const fromChainId = this.walletClientService.chains[BridgePayloadDTO.fromChain].id;
+    
+    const tokenDec = await this.getTokenDec(BridgePayloadDTO.fromToken, fromChainId);
+
+    const fromAmount = parseUnits(BridgePayloadDTO.amount, tokenDec);
+    const fromAmountString = fromAmount.toString();    
+
+    const fromChainPublicClient = await this.walletClientService.createPublicClient(fromChainId);
+    const toChainPublicClient = await this.walletClientService.createPublicClient(toChainId);
+    let routes:RoutesResponse;
+
+    if(BridgePayloadDTO.fuel) {
+      const gasSuggestion = await this.getGasSuggestion(toChainId, BridgePayloadDTO.fromToken, fromChainId)
+      const fromAmountForGas = gasSuggestion?.available ? gasSuggestion?.fromAmount : undefined
+
+      routes = await getRoutes({
+        fromTokenAddress: BridgePayloadDTO.fromToken,
+        toTokenAddress: BridgePayloadDTO.toToken? BridgePayloadDTO.toToken : BridgePayloadDTO.fromToken,
+        fromChainId: fromChainId,
+        toChainId: toChainId,
+        fromAmount: fromAmountString,
+        fromAddress: walletClient.account.address,
+        toAddress: BridgePayloadDTO.toAddress || walletClient.account.address,
+        fromAmountForGas: fromAmountForGas,
+      });
+
+      if (!routes.routes.length) {
+        console.log('No routes found. Please try again with a different token / chain combination.');
+        return "No routes found. Please try again with a different token / chain combination."; //TODO: Change the msg later
+      }
+
+    } else {
+      routes = await getRoutes({
+        fromTokenAddress: BridgePayloadDTO.fromToken,
+        toTokenAddress: BridgePayloadDTO.toToken ? BridgePayloadDTO.toToken : BridgePayloadDTO.fromToken,
+        fromChainId: fromChainId,
+        toChainId: toChainId,
+        fromAmount: fromAmountString,
+        fromAddress: walletClient.account.address,
+        toAddress: BridgePayloadDTO.toAddress || walletClient.account.address,
+      });
+
+      if (!routes.routes.length) {
+        console.log('No routes found. Please try again with a different token / chain combination.');
+        return "No routes found. Please try again with a different token / chain combination."; //TODO: Change the msg later
+      }
+
+      const stepLength = routes.routes[0].steps.length;
+
+      if (stepLength > 1) {
+        // check the native balance of the wallet address on the toChainId
+        const txStep = await getStepTransaction(routes.routes[0].steps[1])
+
+        const toChainNativeBalance = await toChainPublicClient.getBalance({
+          address: walletClient.account.address,
+        });
+
+        if(parseInt(toChainNativeBalance.toString()) <= parseInt(txStep.estimate.gasCosts[0].amount)) {
+
+          // console.log("Multiple steps found. There is no token balance in your destination chain to fund the subsequent steps But no worries! If you'd like the total gas fees to be covered from the source chain instead, just mention 'fund the transaction' in your prompt and send the whole prompt again. I'll take care of the rest!");
+          // return "Multiple steps found. There is no token balance in your destination chain to fund the subsequent steps. But no worries! If you'd like the total gas fees to be covered from the source chain instead, just mention 'fund the transaction' in your prompt and send whole prompt again. I'll take care of the rest!"; 
+
+          console.log(`It seems that this route has multiple steps and you don't have enough balance on the destination chain to fulfill the second step. Please fund your wallet on the desination chain and retry`)
+          return `It seems that this route has multiple steps and you don't have enough balance on the destination chain to fulfill the second step. Please fund your wallet on the desination chain and retry`
+        }
+        
+      }
+    }
+
+    // check the number of steps in the route
+    const stepLength = routes.routes[0].steps.length;
+    console.log('routes steps length:', stepLength);
+
+
+    const txStep = await getStepTransaction(routes.routes[0].steps[0]);    
+
+    const fromNativeBalance = await fromChainPublicClient.getBalance({
+      address: walletClient.account.address,
+    });
+
+    const tokenAddress = await this.getTokenAddress(BridgePayloadDTO.fromToken, fromChainId )
+    console.log({tokenAddress})
+    if(tokenAddress !== zeroAddress) {
+
+      const approvalAmount = txStep.estimate.fromAmount;
+      const approvalAddress = txStep.estimate.approvalAddress;
+      const data = encodeFunctionData({
+        abi: approvalABI,
+        functionName: 'approve',
+        args: [approvalAddress, approvalAmount],
+      });    
+  
+      const gas = await fromChainPublicClient.estimateGas({
+        data,
+        account: walletClient.account.address,
+        to: txStep.action.fromToken.address,
+      })
+  
+      console.log({fromNativeBalance, gas})
+  
+      // Check if native balance is less than estimated gas
+      if (fromNativeBalance < gas) {
+        console.error('Native balance is less than estimated gas. Transaction cannot proceed.');
+        return "Not enough gas in your wallet to fund the transaction. Please fund your wallet with enough gas native tokens to perform the transactions"
+      }
+  
+      const transactionParam = {
+        to: txStep.action.fromToken.address,
+        chainId: fromChainId,
+        data: data,
+        // gasLimit: parseInt(BigInt(21700).toString()),
+        // nonce: Number(nonce),
+        // maxFeePerGas: parseInt(BigInt(50000000000).toString()),
+        // maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
+      };
+  
+      const approved: any = await this.privy.walletApi.ethereum.sendTransaction({
+        address: walletClient.account.address.toLowerCase(),
+        chainType: 'ethereum',
+        caip2: `eip155:${fromChainId}`,
+        transaction: transactionParam,
+      });
+      console.log({Apporvalhash: approved.hash});
+  
+      await this.waitForConfirmation(
+        fromChainPublicClient as PublicClient,
+        approved.hash as Hash,
+      );
+  
+    }    
+
+    const transactionRequestWithParams = {
+      address: walletClient.account.address.toLowerCase(),
+      chainType: 'ethereum',
+      caip2: `eip155:${fromChainId}`,
+      transaction: txStep.transactionRequest,
+    };
+    const transactionHash: any =
+      await this.privy.walletApi.ethereum.sendTransaction(
+        transactionRequestWithParams,
+      );
+
+    await this.waitForConfirmation(
+      fromChainPublicClient as PublicClient,
+      transactionHash.hash as Hash,
+    );
+
+
+    if (stepLength > 1) {
+      const secondStep = await getStepTransaction(routes.routes[0].steps[1]);
+      const firstTxnEstTime = new Date().getTime() + txStep.estimate.executionDuration * 1000;
+      const firstTxEstDateTime = new Date(firstTxnEstTime).toISOString();
+
+      const secondTxn = await this.prismaService.txnData.create(
+        {
+          data:{
+            firstTxnEstTime: firstTxEstDateTime,
+            firstTxnHash: transactionHash.hash,
+            firstTxnStatus: TxnStatus.PENDING, 
+            roomId: BridgePayloadDTO.roomId,
+            secondTxnData: secondStep.transactionRequest,
+            secondStepApprovalAddress: secondStep.action.fromToken.address,
+            secondStepApprovalAmount: secondStep.estimate.fromAmount,
+            privyWalletAddress: walletClient.account.address
+          }
+        }
+      )
+
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const result = await getStatus({
+        txHash: transactionHash.hash,
+      });
+
+
+      return `Transaction hash: ${transactionHash.hash}, estimated time in seconds: ${txStep.estimate.executionDuration}, Second txn id: ${secondTxn.id}, status: ${result.status}`;
+    }
+
+    const result = await getStatus({
+      txHash: transactionHash.hash,
+    });
+    
+    console.log(`Transaction hash: ${transactionHash.hash}, estimated time in seconds: ${txStep.estimate.executionDuration}, status: ${result.status}`);
+
+    return `Transaction hash: ${transactionHash.hash}, estimated time in seconds: ${txStep.estimate.executionDuration}`;
+
+  }
+  
+}
