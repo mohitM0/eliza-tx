@@ -35,10 +35,7 @@ export default class AuthTokenService {
       
       const verifiedClaims = await this.privy.verifyAuthToken(
         authToken
-      );
-
-      console.log("verifiedClaims:" + verifiedClaims.appId);
-      
+      );    
       return verifiedClaims;
     } catch (error) {
       throw new InternalServerErrorException(`Token verification failed with error: ${error.message}`);
