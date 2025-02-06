@@ -13,10 +13,13 @@ import WalletClientService from './_common/service/walletClient.service';
 import AuthTokenService from './_common/service/authToken.service';
 import { ConfigModule } from '@nestjs/config';
 import { ConfigService } from '@nestjs/config';
+import { SolanaTxController } from './solana-tx/solana-tx.controller';
+// import { PrivyModule } from './_common/module/privy.module';
 
 @Module({
   imports: [
     EvmTxModule, 
+    // PrivyModule,
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     RedisModule.forRootAsync({
@@ -40,6 +43,6 @@ export class AppModule implements NestModule{
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(AccessTokenMiddleware)
-      .forRoutes(EvmTxController);
+      .forRoutes(EvmTxController, SolanaTxController);
   }
 }

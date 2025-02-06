@@ -83,6 +83,28 @@ export default class WalletClientService {
     });
   }
 
+  async verifyAndGetSolAddress(authToken: string) {
+    const verifiedAuthToken = await this.authTokenService.verifyAuthToken(authToken);
+    // const user: User = await this.privy.getUserById(verifiedAuthToken.userId);
+    const user: any = await this.privy.getUserById(verifiedAuthToken.userId);
+
+    const privySolanaAccount = user.linkedAccounts.find(
+      (account) =>
+        account.walletClientType === 'privy' &&
+        account.connectorType === 'embedded' &&
+        account.chainType === 'solana',
+    );
+    const privySolanaAddress = privySolanaAccount.address;
+    if (privySolanaAddress) {
+      console.log('Privy Solana Address:', privySolanaAddress);
+    } else {
+      console.log('No linked account matches the criteria.');
+    }
+
+    return privySolanaAddress;
+
+  }
+
   async createLocalAccount(authToken: string): Promise<Account> {
     try {
       const verifiedAuthToken =
