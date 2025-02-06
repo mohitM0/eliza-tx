@@ -8,6 +8,7 @@ import { allowanceABI, approvalABI } from "../helper/abi";
 import { PrivyClient } from "@privy-io/server-auth";
 import { waitForConfirmation } from "../helper/confirmation";
 import WalletClientService from "./walletClient.service";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class ScheduleService {
@@ -15,14 +16,16 @@ export class ScheduleService {
     private readonly logger = new Logger(ScheduleService.name);
     constructor(
         private readonly prismaService: PrismaService,
-        private readonly walletClientService: WalletClientService
+        private readonly walletClientService: WalletClientService,
+        private configService: ConfigService
     ) {
-        const appId = process.env.PRIVY_APP_ID;
-        const appSecret = process.env.PRIVY_APP_SECRET;
+        const appId = this.configService.getOrThrow<string>('PRIVY_APP_ID');
+        const appSecret = this.configService.getOrThrow<string>('PRIVY_APP_SECRET');
+    
         this.privy = new PrivyClient(appId, appSecret, {
-            walletApi: {
-                authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
-            },
+          walletApi: {
+            authorizationPrivateKey: this.configService.getOrThrow<string>('PRIVY_AUTHORIZATION_PRIVATE_KEY'),
+          },
         });
     }
 

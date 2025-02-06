@@ -25,6 +25,7 @@
     "@lifi/sdk": "^3.4.1",
     "@nestjs/class-validator": "^0.13.4",
     "@nestjs/common": "^10.0.0",
+    "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^10.0.0",

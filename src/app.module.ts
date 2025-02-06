@@ -11,17 +11,23 @@ import { PrismaService } from './_common/service/prisma.service';
 import { SolanaTxModule } from './solana-tx/solana-tx.module';
 import WalletClientService from './_common/service/walletClient.service';
 import AuthTokenService from './_common/service/authToken.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
     EvmTxModule, 
     ScheduleModule.forRoot(),
-    RedisModule.forRoot({
-      config: {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT),
-        password: process.env.REDIS_PWD,
-      },
+    ConfigModule.forRoot({ isGlobal: true }),
+    RedisModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        config: {
+          host: configService.get<string>('REDIS_HOST'),
+          port: parseInt(configService.get<string>('REDIS_PORT')),
+          password: configService.get<string>('REDIS_PWD'),
+        },
+      }),
+      inject: [ConfigService],
     }),
     SolanaTxModule,
   ],

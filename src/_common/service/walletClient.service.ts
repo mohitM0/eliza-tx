@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { LinkedAccountWithMetadata, PrivyClient, User } from '@privy-io/server-auth';
 import * as dotenv from 'dotenv';
 import { createViemAccount } from '@privy-io/server-auth/viem';
@@ -67,22 +68,17 @@ export default class WalletClientService {
 
   constructor(
     private authTokenService: AuthTokenService,
-    private redisService: RedisService
+    private redisService: RedisService,
+    private configService: ConfigService,
   ) {
-    const appId = process.env.PRIVY_APP_ID;
-    const appSecret = process.env.PRIVY_APP_SECRET;
-
     this.redisClient = this.redisService.getOrThrow();
 
-    if (!appId || !appSecret) {
-      throw new Error(
-        'Privy App ID and App Secret must be set in environment variables.',
-      );
-    }
+    const appId = this.configService.getOrThrow<string>('PRIVY_APP_ID');
+    const appSecret = this.configService.getOrThrow<string>('PRIVY_APP_SECRET');
 
     this.privy = new PrivyClient(appId, appSecret, {
       walletApi: {
-        authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
+        authorizationPrivateKey: this.configService.getOrThrow<string>('PRIVY_AUTHORIZATION_PRIVATE_KEY'),
       },
     });
   }
