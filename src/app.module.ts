@@ -8,6 +8,7 @@ import { EvmTxController } from './evm-tx/evm-tx.controller';
 import { ScheduleService } from './_common/service/schedule.service';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaService } from './_common/service/prisma.service';
+import { SolanaTxModule } from './solana-tx/solana-tx.module';
 import WalletClientService from './_common/service/walletClient.service';
 import AuthTokenService from './_common/service/authToken.service';
 
@@ -22,6 +23,7 @@ import AuthTokenService from './_common/service/authToken.service';
         password: process.env.REDIS_PWD,
       },
     }),
+    SolanaTxModule,
   ],
   controllers: [AppController],
   providers: [AppService, ScheduleService, PrismaService, WalletClientService, AuthTokenService],
