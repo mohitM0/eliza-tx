@@ -40,6 +40,7 @@ import { approvalABI, transferABI } from 'src/_common/helper/abi';
 import { Transaction } from 'src/_common/utils/interface';
 import { PrismaService } from 'src/_common/service/prisma.service';
 import { Prisma, TxnStatus } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 dotenv.config();
 
@@ -50,19 +51,14 @@ export class EvmTxService {
   constructor(
     private walletClientService: WalletClientService,
     private prismaService: PrismaService,
+    private configService: ConfigService
   ) {
-    const appId = process.env.PRIVY_APP_ID;
-    const appSecret = process.env.PRIVY_APP_SECRET;
-
-    if (!appId || !appSecret) {
-      throw new Error(
-        'Privy App ID and App Secret must be set in environment variables.',
-      );
-    }
+    const appId = this.configService.getOrThrow<string>('PRIVY_APP_ID');
+    const appSecret = this.configService.getOrThrow<string>('PRIVY_APP_SECRET');
 
     this.privy = new PrivyClient(appId, appSecret, {
       walletApi: {
-        authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
+        authorizationPrivateKey: this.configService.getOrThrow<string>('PRIVY_AUTHORIZATION_PRIVATE_KEY'),
       },
     });
   }

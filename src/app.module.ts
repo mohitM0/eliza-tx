@@ -12,6 +12,7 @@ import { SolanaTxModule } from './solana-tx/solana-tx.module';
 import WalletClientService from './_common/service/walletClient.service';
 import AuthTokenService from './_common/service/authToken.service';
 import { ConfigModule } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
