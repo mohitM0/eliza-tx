@@ -29,7 +29,7 @@ export class ScheduleService {
         });
     }
 
-    @Cron('0 */2 * * * *', { name: 'perform-second-step' })
+    @Cron('0 */15 * * * *', { name: 'perform-second-step' })
     async performSecond() {
         this.logger.log('cron for second step started')
         const currentTime = new Date().getTime();
