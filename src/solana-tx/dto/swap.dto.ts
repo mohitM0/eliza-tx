@@ -1,3 +1,10 @@
-import { TransferDTO } from "./transfer.dto";
+import { IsString, IsOptional } from "@nestjs/class-validator";
 
-export class swapDTO extends TransferDTO {}
+export class SwapDTO {
+    @IsString()
+    amount: string;
+
+    @IsString()
+    @IsOptional()
+    tokenAddress: string;
+}

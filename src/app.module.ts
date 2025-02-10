@@ -43,6 +43,9 @@ export class AppModule implements NestModule{
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(AccessTokenMiddleware)
-      .forRoutes(EvmTxController, SolanaTxController);
+      .forRoutes(
+        EvmTxController,
+        SolanaTxController,
+      );
   }
 }
