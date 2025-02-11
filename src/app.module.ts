@@ -15,6 +15,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ConfigService } from '@nestjs/config';
 import { SolanaTxController } from './solana-tx/solana-tx.controller';
 // import { PrivyModule } from './_common/module/privy.module';
+import { SwapModule } from './swap/swap.module';
+import { SwapController } from './swap/swap.controller';
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { SolanaTxController } from './solana-tx/solana-tx.controller';
       inject: [ConfigService],
     }),
     SolanaTxModule,
+    SwapModule,
   ],
   controllers: [AppController],
   providers: [AppService, ScheduleService, PrismaService, WalletClientService, AuthTokenService],
@@ -46,6 +49,7 @@ export class AppModule implements NestModule{
       .forRoutes(
         EvmTxController,
         SolanaTxController,
+        SwapController,
       );
   }
 }

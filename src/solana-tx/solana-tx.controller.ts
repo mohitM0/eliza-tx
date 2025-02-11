@@ -15,22 +15,4 @@ export class SolanaTxController {
     const authToken = req['authToken'];
     return this.solanaTxService.transfer(transferDTO, authToken)
   }
-
-  @Post('swap')
-  transferSwap(
-    @Req() req: Request,
-    @Body() swapDTO: SwapDTO,
-  ) {
-    const authToken = req['authToken'];
-    return this.solanaTxService.swap(swapDTO, authToken)
-  }
-
-  // @Get('get-swap-routes')
-  // getSwapRoutes(
-  //   @Query() transferDTO: TransferDTO,
-  // ) {
-  //   return this.solanaTxService.getRoutes(transferDTO)
-  // }
-
-
 }
