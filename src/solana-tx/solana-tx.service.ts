@@ -128,7 +128,7 @@ export class SolanaTxService {
     return `Transfering ${transferDTO.amount} SOL from ${solanaAddress} to ${recipientPubKey.toString()}: DONE`;
   }
 
-    async swap1(
+  async swap1(
     swapDTO: SwapDTO,
     authToken: string
   ) {
