@@ -21,7 +21,8 @@ import {
   getStatus,
   getTokenAllowance,
   getGasRecommendation,
-  RoutesResponse
+  RoutesResponse,
+  getTokenBalance
 } from '@lifi/sdk';
 import {
   encodeFunctionData,
@@ -41,8 +42,6 @@ import { Transaction } from 'src/_common/utils/interface';
 import { PrismaService } from 'src/_common/service/prisma.service';
 import { Prisma, TxnStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-
-dotenv.config();
 
 @Injectable()
 export class EvmTxService {
@@ -127,7 +126,7 @@ export class EvmTxService {
   async transfer(
     TransferPayload: TransferDTO,
     authToken: string,
-  ): Promise<Transaction> {
+  ) {
     let nativeTransfer: boolean = null;
     if (TransferPayload.token) {
       nativeTransfer = false;
@@ -147,11 +146,21 @@ export class EvmTxService {
 
     if (!nativeTransfer) {
       try {
+
         const erc20TokenAddress = await this.getTokenAddress(
           TransferPayload.token,
           fromChain.id,
         );
-        const transferAmount = parseEther(TransferPayload.amount);
+        const tokenDecimals = await this.getTokenDec(
+          TransferPayload.token,
+          fromChain.id,
+        )
+        const transferAmount = parseUnits(TransferPayload.amount, tokenDecimals);
+        const inputToken = await getToken(fromChain.id, erc20TokenAddress);
+        const tokenBalance = await getTokenBalance(walletClient.account.address, inputToken);
+        if ( parseInt(tokenBalance.amount.toString()) < parseInt(transferAmount.toString())) {
+          return `Insufficient balance. Your balance is ${tokenBalance.amount.toString()}. Please fund your account and try again.`;
+        }
         const encodedData = encodeFunctionData({
           abi: transferABI,
           // functionName: 'transfer',
@@ -178,13 +187,20 @@ export class EvmTxService {
           data.hash as Hash,
         );
         console.log(data.hash);
+        return `Transfer Transaction successful. Hash: ${data.hash as Hash}`;
       } catch (error) {}
     } else {
       try {
-        console.log('above');
-
         const ethValue = parseEther(TransferPayload.amount);
         const value = parseInt(ethValue.toString());
+
+        const nativeBalance = await publicClient.getBalance({
+          address: walletClient.account.address,
+        })
+        console.log('Native balance:', nativeBalance);
+        if(nativeBalance < ethValue) {
+          return `Insufficient balance. Your balance is ${formatEther(nativeBalance)}. Please fund your account and try again.`;
+        }
 
         const data: any = await this.privy.walletApi.ethereum.sendTransaction({
           address: walletClient.account.address.toLowerCase(),
@@ -203,18 +219,12 @@ export class EvmTxService {
           data.hash as Hash,
         )
         console.log('hash: ', data.hash);
+        return `Transfer Transaction successful. Hash: ${data.hash as Hash}`;
+
       } catch (error) {
-        console.error('Error signing transaction:', error);
+        console.error('Error sending transaction:', error);
       }
     }
-
-    return {
-      // @ts-ignore
-      hash,
-      from: walletClient.account.address,
-      to: TransferPayload.toAddress,
-      value: parseEther(TransferPayload.amount),
-    };
   }
   catch(error) {
     throw new Error(`Transfer failed: ${error.message}`);
@@ -1200,10 +1210,6 @@ export class EvmTxService {
         });
 
         if(parseInt(toChainNativeBalance.toString()) <= parseInt(txStep.estimate.gasCosts[0].amount)) {
-
-          // console.log("Multiple steps found. There is no token balance in your destination chain to fund the subsequent steps But no worries! If you'd like the total gas fees to be covered from the source chain instead, just mention 'fund the transaction' in your prompt and send the whole prompt again. I'll take care of the rest!");
-          // return "Multiple steps found. There is no token balance in your destination chain to fund the subsequent steps. But no worries! If you'd like the total gas fees to be covered from the source chain instead, just mention 'fund the transaction' in your prompt and send whole prompt again. I'll take care of the rest!"; 
-
           console.log(`It seems that this route has multiple steps and you don't have enough balance on the destination chain to fulfill the second step. Please fund your wallet on the desination chain and retry`)
           return `It seems that this route has multiple steps and you don't have enough balance on the destination chain to fulfill the second step. Please fund your wallet on the desination chain and retry`
         }
@@ -1252,10 +1258,6 @@ export class EvmTxService {
         to: txStep.action.fromToken.address,
         chainId: fromChainId,
         data: data,
-        // gasLimit: parseInt(BigInt(21700).toString()),
-        // nonce: Number(nonce),
-        // maxFeePerGas: parseInt(BigInt(50000000000).toString()),
-        // maxPriorityFeePerGas: parseInt(BigInt(2000000000).toString()),
       };
   
       const approved: any = await this.privy.walletApi.ethereum.sendTransaction({

@@ -5,10 +5,12 @@ import { BlockheightBasedTransactionConfirmationStrategy, Connection, LAMPORTS_P
 import WalletClientService from 'src/_common/service/walletClient.service';
 import { ConfigService } from '@nestjs/config';
 import AuthTokenService from 'src/_common/service/authToken.service';
-import { createConfig, ExtendedChain, getRoutes, getStatus, getStepTransaction, getToken, getTokenAllowance } from '@lifi/sdk';
+import { createConfig, ExtendedChain, getRoutes, getStatus, getStepTransaction, getToken, getTokenAllowance, getTokenBalance } from '@lifi/sdk';
 import { encodeFunctionData, formatEther, Hash, parseEther, parseUnits, PublicClient, TransactionReceipt, WalletClient, zeroAddress } from 'viem';
 import { approvalABI } from 'src/_common/helper/abi';
-import { supportEVMSwapChains } from 'src/_common/helper/constants';
+import { nativeSOLAddress, solChainId, supportEVMSwapChains } from 'src/_common/helper/constants';
+import { IResponse } from 'src/_common/utils/interface';
+import { response } from 'src/_common/helper/response';
 
 @Injectable()
 export class SwapService {
@@ -47,12 +49,11 @@ export class SwapService {
         if(supportEVMSwapChains.includes(swapDTO.chain.toLowerCase() as string )){
             return this.evmSwap(swapDTO, authToken);
         }
-        return `Given chain: ${swapDTO.chain.toLowerCase()} is not supported for swap`;
+        return response('FAILED',`Given chain: ${swapDTO.chain.toLowerCase()} is not supported for swap`);
     }
 
     private async swapSol(swapDTO: SwapPayloadDTO, authToken: string) {
         console.log('swapDTO', swapDTO);
-        const solChainId = 1151111081099710
         
         const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
         const [solanaAddress, { tokenAddress: inputTokenAddress, tokenDec }, { tokenAddress: outputTokenAddress }] = await Promise.all([
@@ -65,7 +66,7 @@ export class SwapService {
         const amountToSend = (parseFloat(swapDTO.amount) * Math.pow(10, tokenDec)).toString();
         console.log({ solanaAddress, inputTokenAddress, tokenDec, outputTokenAddress, amountToSend });
 
-        if(inputTokenAddress !== '11111111111111111111111111111111') {
+        if(inputTokenAddress !== nativeSOLAddress) {
             const { getAccount, getAssociatedTokenAddress } = await import('@solana/spl-token');
             const inputTokenAccount = new PublicKey(inputTokenAddress);
             const senderTokenATAData = await getAssociatedTokenAddress(inputTokenAccount, senderPubKey);
@@ -76,14 +77,13 @@ export class SwapService {
                 this.connection.getBalance(senderPubKey)
             ]);
             console.log({ info: info.amount , solBalance });
-            if (info.amount == null ) return `No balance found for ${swapDTO.inputToken}. Please fund the account`;
-            if (parseInt(info.amount.toString())< parseInt(amountToSend)) return `Insufficient balance for ${swapDTO.inputToken}. Please fund the account`;
-            if (solBalance === 0) return `Insufficient native SOL balance to proceed with the transaction. Please fund the account`;
+            if (info.amount == null ) return response('FAILED',`No balance found for ${swapDTO.inputToken}. Please fund the account`);
+            if (parseInt(info.amount.toString())< parseInt(amountToSend)) return response('FAILED',`Insufficient balance for ${swapDTO.inputToken} to do this transaction. Please fund the account`);
+            if (solBalance === 0) return response('FAILED',`Insufficient native SOL balance to proceed with the transaction. Please fund the account`);
         } else {
             const solBalance = await this.connection.getBalance(senderPubKey);
-            if(solBalance <= parseInt(amountToSend) ) return `Insufficient native SOL balance to proceed with the transaction. Please fund the account`;
+            if(solBalance <= parseInt(amountToSend) ) return response('FAILED',`Insufficient native SOL balance to proceed with the transaction. Please fund the account`);
         }
-
         const routes = await getRoutes({
             fromChainId: solChainId,
             fromAmount: amountToSend,
@@ -100,7 +100,7 @@ export class SwapService {
         console.log({ stepTX });
         console.log('steps', routes.routes[0].steps[0].includedSteps);
 
-        if (outputTokenAddress !== '11111111111111111111111111111111') {
+        if (outputTokenAddress !== nativeSOLAddress) {
             const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } = await import('@solana/spl-token');
             const recieverTokenPubKey = new PublicKey(outputTokenAddress);
             const recievedTokenATAdata = await getAssociatedTokenAddress(recieverTokenPubKey, senderPubKey);
@@ -172,8 +172,12 @@ export class SwapService {
         )
         console.log({ a });
 
-        return `Transaction ${txnId} confirmed, status: ${status}`;
-
+        const res: IResponse = {
+            status: 'IN_PROGRESS',
+            message: `Transaction confirmed, status: ${status}`,
+            hash: txnId
+        }
+        return res;
     }
 
     private async evmSwap(
@@ -247,7 +251,14 @@ export class SwapService {
                 fromAddress: fromAddress,
             });
 
-            if (!routes.routes.length) throw new Error('No routes found');
+            if (!routes.routes.length) {
+                console.error('No routes found');
+                const res : IResponse = {
+                    status: 'FAILED',
+                    message: 'No routes found for this token combination. Please try again',
+                }
+                return res;                
+            }  
 
             const route = routes.routes[0];
 
@@ -264,6 +275,19 @@ export class SwapService {
                         chainId: chainId,
                     };
 
+                    const inputToken = await getToken(token.chainId, token.address);
+                    const tokenBalance = await getTokenBalance(walletClient.account.address, inputToken);
+
+                    console.log('Token balance:', tokenBalance.amount.toString());
+                    if (parseInt(tokenBalance.amount.toString()) < parseInt(fromAmountString)) {
+                        console.error('Insufficient balance');
+                        const res : IResponse = {
+                            status: 'FAILED',
+                            message: `Insufficient balance for ${SwapPayloadDTO.inputToken} to do this transaction. Please fund the account`,
+                        }
+                        return res; 
+                    }
+
                     // Check if fromAddress is not the zero address
                     if (inputTokenAddress !== zeroAddress) {
                         const allowance = await getTokenAllowance(
@@ -271,8 +295,6 @@ export class SwapService {
                             walletClient.account.address,
                             step.estimate.approvalAddress,
                         );
-                        console.log('Allowance:', parseInt(allowance.toString()));
-                        console.log('Step from amount:', parseInt(step.estimate.fromAmount));
                         if (parseInt(allowance.toString()) <= parseInt(step.estimate.fromAmount)) {
                             const approvalAmount = step.estimate.fromAmount;
                             const approvalAddress = step.estimate.approvalAddress;
@@ -299,7 +321,11 @@ export class SwapService {
                             // Check if native balance is less than estimated gas
                             if (nativeBalance < gas) {
                                 console.error('Native balance is less than estimated gas. Transaction cannot proceed.');
-                                return; // Change when response type is defined
+                                const res : IResponse = {
+                                    status: 'FAILED',
+                                    message: 'Native balance is less than estimated gas. Transaction cannot proceed.',
+                                }
+                                return res;
                             }
 
                             const transactionParam = {
@@ -362,7 +388,23 @@ export class SwapService {
 
                     if (status === 'FAILED') {
                         console.error(`Transaction ${transactionHash.hash} failed`);
-                        return;
+                        const res : IResponse = {
+                            status: 'FAILED',
+                            message: `Transaction ${transactionHash.hash} failed`,
+                            hash: transactionHash.hash,
+                        }
+                        return res;
+                        
+                    }
+
+                    if (status === 'DONE') {
+                        console.log(`Transaction ${transactionHash.hash} succeeded`);
+                        const res : IResponse = {
+                            status: 'SUCCESS',
+                            message: `Transaction ${transactionHash.hash} succeeded`,
+                            hash: transactionHash.hash,
+                        }
+                        return res; 
                     }
                 }
 

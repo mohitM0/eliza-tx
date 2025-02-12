@@ -8,6 +8,5 @@ export class TransferDTO {
     amount: string;
 
     @IsString()
-    @IsOptional()
-    tokenAddress: string;
+    token: string
 }

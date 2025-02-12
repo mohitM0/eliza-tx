@@ -8,3 +8,10 @@ export interface Transaction {
     data?: `0x${string}`;
     chainId?: number;
   }
+
+  
+export interface IResponse {
+  status: 'SUCCESS' | 'FAILED' | 'IN_PROGRESS';
+  message: string;
+  hash?: string | null | Hash;
+}
