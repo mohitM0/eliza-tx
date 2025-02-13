@@ -1292,7 +1292,6 @@ export class EvmTxService {
             firstTxnEstTime: firstTxEstDateTime,
             firstTxnHash: transactionHash.hash,
             firstTxnStatus: TxnStatus.PENDING, 
-            roomId: BridgePayloadDTO.roomId,
             secondTxnData: secondStep.transactionRequest,
             secondStepApprovalAddress: secondStep.action.fromToken.address,
             secondStepApprovalAmount: secondStep.estimate.fromAmount,

@@ -38,10 +38,6 @@ export class BridgePayloadDTO {
   @IsEthereumAddress()
   toAddress?: Address;
 
-  @IsOptional()
-  @IsUUID()
-  roomId:string
-
   @IsBoolean()
   fuel: boolean = false;
 }

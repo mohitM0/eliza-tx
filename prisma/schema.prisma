@@ -10,7 +10,6 @@ datasource db {
 
 model txnData {
   id                        String    @id @default(cuid())
-  roomId                    String
   privyWalletAddress        String
   firstTxnHash              String
   firstTxnStatus            TxnStatus
