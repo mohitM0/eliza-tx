@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LinkedAccountWithMetadata, PrivyClient, User } from '@privy-io/server-auth';
 import * as dotenv from 'dotenv';
@@ -203,7 +203,7 @@ export default class WalletClientService {
         const verifiedAuthToken =  await this.authTokenService.verifyAuthToken(authToken);
         
         if (!verifiedAuthToken) {
-          throw new Error('User is not verified.');
+          throw new UnauthorizedException('User is not verified.');
         }
 
         userId = verifiedAuthToken.userId;
