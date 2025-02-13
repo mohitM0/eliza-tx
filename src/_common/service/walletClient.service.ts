@@ -170,11 +170,7 @@ export default class WalletClientService {
   }
 
   private hashAuthToken(authToken: string): string {
-    const secretKey = process.env.HASH_SECRET_KEY;
-    if (!secretKey) {
-      throw new Error('HASH_SECRET_KEY must be set in environment variables.');
-    }
-
+    const secretKey = this.configService.getOrThrow<string>('HASH_SECRET_KEY');
     return crypto
       .createHmac('sha256', secretKey)
       .update(authToken)
