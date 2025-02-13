@@ -17,22 +17,6 @@ export class TransferDTO {
   token: string;
 }
 
-export class SwapPayloadDTO {
-  
-  @IsString()
-  inputToken: string;
-
-  @IsString()
-  outputToken: string;
-
-  @IsString()
-  amount: string;
-
-  @IsString()
-  chain: SupportedChain;
-}
-
-
 export class BridgePayloadDTO {
 
   @IsString()
